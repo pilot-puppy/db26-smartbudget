@@ -1,8 +1,11 @@
 package com.smartbudget.console;
 
+import com.smartbudget.model.Transaction;
+
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.util.ArrayList;
+import java.util.InputMismatchException;
 import java.util.List;
 import java.util.Scanner;
 
@@ -20,6 +23,9 @@ import java.util.Scanner;
 //
 // ============================================================
 public class Main {
+
+    private static final List<Transaction> TXNS = new ArrayList<>();
+
     public static void main(String[] args) {
 
         // -------------------------------------------------------
@@ -36,6 +42,7 @@ public class Main {
         // WHY:  This gives you data to display and filter before the database is connected.
         //
         // OBSERVE: After creating the list, print its .size() to verify — should be 10+.
+        seed();
 
         // -------------------------------------------------------
         // TODO TICKET-F016: Step 2 — Build the menu loop
@@ -103,6 +110,73 @@ public class Main {
         //          Try a future date. It should also print an error.
         //          Try valid data — it should add successfully and appear in the list.
 
-        System.out.println("SmartBudget Console - implement me! (TICKET-F016)");
+        Scanner scanner = new Scanner(System.in);
+        boolean running = true;
+
+        while (running) {
+            System.out.println("\n=== SmartBudget Console ===");
+            System.out.println("1) List Transactions");
+            System.out.println("2) Add Transaction");
+            System.out.println("3) Summary");
+            System.out.println("4) Exit");
+            System.out.print("Choice: ");
+
+            int choice;
+            try {
+                choice = scanner.nextInt();
+                scanner.nextLine();
+            } catch (InputMismatchException e) {
+                System.out.println("Please enter a number 1-4.");
+                scanner.nextLine();
+                continue;
+            }
+
+            switch (choice) {
+                case 1 -> listTransactions();
+                case 2 -> addTransaction(scanner);
+                case 3 -> showSummary();
+                case 4 -> running = false;
+                default -> System.out.println("Unknown option: " + choice);
+            }
+        }
+
+        scanner.close();
+        System.out.println("Goodbye!");
+    }
+
+    private static void seed() {
+        TXNS.add(t(1, 1, 1, "3500.00", "2026-01-01", "January salary", "INCOME"));
+        TXNS.add(t(2, 1, 3, "45.20", "2026-01-08", "Groceries", "EXPENSE"));
+        TXNS.add(t(3, 1, 4, "25.00", "2026-01-15", "Bus pass", "EXPENSE"));
+        TXNS.add(t(4, 2, 1, "4200.00", "2026-01-01", "January salary", "INCOME"));
+        TXNS.add(t(5, 2, 5, "120.00", "2026-01-20", "Electricity bill", "EXPENSE"));
+        TXNS.add(t(6, 3, 2, "800.00", "2026-02-05", "Freelance gig", "INCOME"));
+        TXNS.add(t(7, 3, 3, "60.00", "2026-02-10", "Restaurant", "EXPENSE"));
+        TXNS.add(t(8, 1, 1, "3500.00", "2026-02-01", "February salary", "INCOME"));
+        TXNS.add(t(9, 4, 1, "2800.00", "2026-02-01", "February salary", "INCOME"));
+        TXNS.add(t(10, 5, 3, "52.00", "2026-03-05", "Groceries", "EXPENSE"));
+        System.out.println("Seeded " + TXNS.size() + " transactions");
+    }
+
+    private static Transaction t(int id, int uid, int cid, String amt,
+                                 String date, String desc, String type) {
+        return new Transaction(id, uid, cid, new BigDecimal(amt),
+                LocalDate.parse(date), desc, type);
+    }
+
+    private static void listTransactions() {
+        // F018 will add formatted printf output — for F017 we list all rows
+        for (Transaction txn : TXNS) {
+            System.out.println(txn);
+        }
+        System.out.println("Total rows: " + TXNS.size());
+    }
+
+    private static void addTransaction(Scanner scanner) {
+        System.out.println("(Add transaction — implement in TICKET-F019)");
+    }
+
+    private static void showSummary() {
+        System.out.println("(Summary — implement in TICKET-F020)");
     }
 }
