@@ -6,8 +6,10 @@
 -- because foreign keys reference the parent.
 -- Order: users → categories → transactions → savings_goals
 -- ============================================================
-
-
+DROP TABLE IF EXISTS savings_goals;
+DROP TABLE IF EXISTS transactions;
+DROP TABLE IF EXISTS categories;
+DROP TABLE IF EXISTS users;
 -- ============================================================
 -- TODO TICKET-F003: Create the "users" table
 -- ============================================================
@@ -29,8 +31,12 @@
 -- OBSERVE: After creating this table, run \dt in psql (or check Tables in pgAdmin).
 --          You should see "users" listed. Try INSERT INTO users (name, email) VALUES ('Test', 'test@db.com');
 --          Then SELECT * FROM users; — you should see user_id = 1 auto-assigned.
-
-
+CREATE TABLE users (
+    user_id    SERIAL       PRIMARY KEY,
+    name       VARCHAR(100) NOT NULL,
+    email      VARCHAR(150) NOT NULL UNIQUE,
+    created_at TIMESTAMP    DEFAULT CURRENT_TIMESTAMP
+);
 -- ============================================================
 -- TODO TICKET-F003: Create the "categories" table
 -- TODO TICKET-F004: Add CHECK constraint on the "type" column
@@ -52,8 +58,12 @@
 --
 -- OBSERVE: After creating, try inserting a category with type = 'INVALID'.
 --          PostgreSQL should reject it with: "new row violates check constraint".
-
-
+CREATE TABLE categories (
+    category_id SERIAL       PRIMARY KEY,
+    name        VARCHAR(50)  NOT NULL,
+    type        VARCHAR(10)  NOT NULL
+                             CHECK (type IN ('INCOME', 'EXPENSE'))
+);
 -- ============================================================
 -- TODO TICKET-F003: Create the "transactions" table
 -- TODO TICKET-F004: Add FOREIGN KEYs and CHECK (amount > 0)
@@ -84,8 +94,16 @@
 --          1. INSERT with user_id = 999 (non-existent) → should FAIL with FK violation
 --          2. INSERT with amount = -50 → should FAIL with CHECK violation
 --          3. INSERT with valid data → should SUCCEED
-
-
+CREATE TABLE transactions (
+    txn_id      SERIAL         PRIMARY KEY,
+    user_id     INT            NOT NULL REFERENCES users(user_id),
+    category_id INT            NOT NULL REFERENCES categories(category_id),
+    amount      NUMERIC(12,2)  NOT NULL CHECK (amount > 0),
+    txn_date    DATE           NOT NULL DEFAULT CURRENT_DATE,
+    description VARCHAR(255),
+    type        VARCHAR(10)    NOT NULL
+                               CHECK (type IN ('INCOME', 'EXPENSE'))
+);
 -- ============================================================
 -- TODO TICKET-F003: Create the "savings_goals" table
 -- ============================================================
@@ -107,3 +125,11 @@
 -- OBSERVE: After creating, INSERT a goal for user_id = 1. Then run:
 --          SELECT * FROM savings_goals WHERE user_id = 1;
 --          You should see current_amount = 0.00 (the default).
+CREATE TABLE savings_goals (
+    goal_id        SERIAL        PRIMARY KEY,
+    user_id        INT           NOT NULL REFERENCES users(user_id),
+    goal_name      VARCHAR(100)  NOT NULL,
+    target_amount  NUMERIC(12,2) NOT NULL CHECK (target_amount > 0),
+    current_amount NUMERIC(12,2) NOT NULL DEFAULT 0,
+    deadline       DATE
+);
