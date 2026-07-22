@@ -25,7 +25,17 @@
 --
 -- OBSERVE: The result should show human-readable names like "Alice Smith" and "Food"
 --          instead of numeric IDs like 1 and 3.
-
+SELECT t.txn_id,
+       u.name        AS user_name,
+       c.name        AS category,
+       t.amount,
+       t.txn_date,
+       t.description,
+       t.type
+FROM transactions t
+JOIN users      u ON t.user_id     = u.user_id
+JOIN categories c ON t.category_id = c.category_id
+ORDER BY t.txn_date DESC, t.txn_id;
 
 -- ============================================================
 -- TODO TICKET-F006: Q2 — EXPENSE transactions only, sorted by amount (highest first)
@@ -44,6 +54,12 @@
 -- OBSERVE: All results should have type = 'EXPENSE'.
 --          The first row should have the highest amount.
 
+SELECT t.txn_id, u.name, c.name AS category, t.amount, t.txn_date
+FROM transactions t
+JOIN users      u ON t.user_id     = u.user_id
+JOIN categories c ON t.category_id = c.category_id
+WHERE t.type = 'EXPENSE'
+ORDER BY t.amount DESC;
 
 -- ============================================================
 -- TODO TICKET-F006: Q3 — Monthly totals per user
@@ -65,6 +81,13 @@
 -- OBSERVE: Each row should show one user + one month + their total.
 --          For example: "Alice Smith | 2026-05-01 | 3652.50"
 
+SELECT u.name,
+       TO_CHAR(DATE_TRUNC('month', t.txn_date), 'Mon YYYY') AS month,
+       SUM(t.amount) AS total
+FROM transactions t
+JOIN users u ON t.user_id = u.user_id
+GROUP BY u.name, DATE_TRUNC('month', t.txn_date)
+ORDER BY u.name, DATE_TRUNC('month', t.txn_date);
 
 -- ============================================================
 -- TODO TICKET-F006: Q4 — Top 5 highest transactions
@@ -79,6 +102,17 @@
 --
 -- OBSERVE: You should see exactly 5 rows, with the highest amount first.
 
+SELECT u.name,
+       t.txn_date,
+       t.type,
+       t.amount,
+       SUM(CASE WHEN t.type = 'INCOME' THEN  t.amount
+                                       ELSE -t.amount END)
+           OVER (PARTITION BY u.user_id ORDER BY t.txn_date, t.txn_id)
+           AS running_balance
+FROM transactions t
+JOIN users u ON t.user_id = u.user_id
+ORDER BY u.name, t.txn_date, t.txn_id;
 
 -- ============================================================
 -- TODO TICKET-F006: Q5 — Running balance per user (Window Function)
@@ -100,6 +134,16 @@
 -- OBSERVE: For each user, the running_total should increase with each row.
 --          The last row for each user should equal their total sum.
 
+CREATE OR REPLACE VIEW top_expense_categories AS
+SELECT c.name AS category, SUM(t.amount) AS total_spent
+FROM transactions t
+JOIN categories c ON t.category_id = c.category_id
+WHERE c.type = 'EXPENSE'
+GROUP BY c.name
+ORDER BY total_spent DESC
+LIMIT 3;
+
+SELECT * FROM top_expense_categories;
 
 -- ============================================================
 -- TODO TICKET-F008: Create VIEW — monthly_summary
@@ -120,3 +164,15 @@
 --
 -- OBSERVE: After creating, run: SELECT * FROM monthly_summary;
 --          You should see one row per user per month with income/expense split.
+CREATE OR REPLACE VIEW top_expense_categories AS
+SELECT c.name           AS category,
+       SUM(t.amount)    AS total_spent,
+       COUNT(*)         AS txn_count
+FROM transactions t
+JOIN categories  c ON t.category_id = c.category_id
+WHERE c.type = 'EXPENSE'
+GROUP BY c.name
+ORDER BY total_spent DESC
+LIMIT 3;
+
+SELECT * FROM top_expense_categories;
