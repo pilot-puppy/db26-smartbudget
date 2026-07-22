@@ -1,5 +1,20 @@
 package com.smartbudget.service;
 
+import com.smartbudget.exception.InvalidTransactionException;
+import com.smartbudget.model.BaseTransaction;
+import com.smartbudget.model.ExpenseTransaction;
+import com.smartbudget.model.IncomeTransaction;
+
+import java.io.BufferedReader;
+import java.io.BufferedWriter;
+import java.io.FileReader;
+import java.io.FileWriter;
+import java.io.IOException;
+import java.math.BigDecimal;
+import java.time.LocalDate;
+import java.util.ArrayList;
+import java.util.List;
+
 // ============================================================
 // TransactionService — evolves across THREE days:
 //
@@ -15,102 +30,109 @@ public class TransactionService {
     //  DAY 3 (Sprint 2): Plain Java with ArrayList
     // ==========================================================
 
-    // -------------------------------------------------------
-    // TODO TICKET-F026: Step 1 — Add a storage field
-    // -------------------------------------------------------
-    // WHAT: A List (specifically ArrayList) stores transactions in memory.
-    //       This is NOT a database — data is lost when the program exits.
-    //       Think of it as a temporary in-memory storage for practice.
-    //
-    // HOW:  Declare a private field of type List<BaseTransaction> and initialize it as a new ArrayList.
-    //       Import BaseTransaction from com.smartbudget.model.
-    //
-    // WHY:  Before connecting to a database (Day 4), you need somewhere to store data.
-    //       ArrayList is the simplest collection — it maintains insertion order and allows duplicates.
+    private final List<BaseTransaction> transactions = new ArrayList<>();
 
-    // -------------------------------------------------------
-    // TODO TICKET-F026: Step 2 — addTransaction() and getAll()
-    // -------------------------------------------------------
-    // WHAT: Basic CRUD operations — Create and Read.
-    //       addTransaction adds a BaseTransaction to the list.
-    //       getAll returns all transactions (return a copy, not the original list).
-    //
-    // HOW:  addTransaction: accepts a BaseTransaction, calls list.add(t).
-    //       getAll: returns new ArrayList<>(transactions) — a defensive copy.
-    //
-    // WHY:  Returning a copy in getAll() prevents external code from modifying your internal list.
-    //       This is a defensive programming practice.
-    //
-    // OBSERVE: Call addTransaction 3 times, then getAll(). The list should have 3 items.
+    public void addTransaction(BaseTransaction t) {
+        if (t == null) {
+            throw new IllegalArgumentException("transaction must not be null");
+        }
+        if (t.getDescription() == null || t.getDescription().isBlank()) {
+            throw new InvalidTransactionException(
+                    "description must not be blank for transaction id=" + t.getTxnId());
+        }
+        transactions.add(t);
+    }
 
-    // -------------------------------------------------------
-    // TODO TICKET-F027: filterByDateRange(LocalDate from, LocalDate to)
-    // -------------------------------------------------------
-    // WHAT: Filtering means returning only items that match certain criteria.
-    //       This method returns transactions that fall within a date range.
-    //
-    // HOW:  Loop through the list. For each transaction, check if its date is:
-    //         - NOT before the "from" date (use !date.isBefore(from))
-    //         - NOT after the "to" date (use !date.isAfter(to))
-    //       If both conditions are true, add it to a result list and return the result.
-    //
-    // WHY:  Date filtering is essential for financial apps — users want to see
-    //       "all transactions this month" or "last 30 days".
-    //
-    // OBSERVE: Add transactions with different dates, then filter for a specific range.
-    //          Only transactions within that range should appear.
+    public List<BaseTransaction> getAll() {
+        // defensive copy so callers can't mutate our internal list
+        return new ArrayList<>(transactions);
+    }
 
-    // -------------------------------------------------------
-    // TODO TICKET-F028: calculateTotalByType(String type)
-    // -------------------------------------------------------
-    // WHAT: Aggregation — summing up amounts for a specific type (INCOME or EXPENSE).
-    //
-    // HOW:  Start with BigDecimal.ZERO. Loop through the list.
-    //       For each transaction where getType() matches the parameter,
-    //       add its amount to the total using BigDecimal's .add() method.
-    //       Return the total.
-    //
-    // WHY:  The dashboard needs "Total Income" and "Total Expenses" values.
-    //       Use BigDecimal (not double) for financial calculations to avoid precision errors.
-    //
-    // OBSERVE: Add some income and expense transactions.
-    //          calculateTotalByType("INCOME") should return the sum of all incomes.
+    public List<BaseTransaction> filterByDateRange(LocalDate from, LocalDate to) {
+        if (from == null || to == null) {
+            throw new IllegalArgumentException("from and to must be non-null");
+        }
+        if (from.isAfter(to)) {
+            return new ArrayList<>();
+        }
+        List<BaseTransaction> result = new ArrayList<>();
+        for (BaseTransaction t : transactions) {
+            LocalDate d = t.getTxnDate();
+            if (!d.isBefore(from) && !d.isAfter(to)) {
+                result.add(t);
+            }
+        }
+        return result;
+    }
 
-    // -------------------------------------------------------
-    // TODO TICKET-F029: exportToCSV(String filePath)
-    // -------------------------------------------------------
-    // WHAT: CSV (Comma-Separated Values) is a simple file format for tabular data.
-    //       Each line is a row, columns separated by commas.
-    //       Example: 1,INCOME,3500.00,2026-05-01,May salary
-    //
-    // HOW:  Use BufferedWriter (wraps FileWriter) for efficient file writing.
-    //       Write a header line first: "id,type,amount,date,description"
-    //       Loop through transactions, write each as a CSV line.
-    //       Use try-with-resources to auto-close the writer.
-    //
-    // WHY:  CSV export is a common feature in financial apps.
-    //       Users import CSVs into Excel for further analysis.
-    //
-    // OBSERVE: After exporting, open the file in a text editor or Excel.
-    //          Each transaction should be one row with comma-separated values.
+    public BigDecimal calculateTotalByType(String type) {
+        if (type == null) {
+            throw new IllegalArgumentException("type must not be null");
+        }
+        BigDecimal total = BigDecimal.ZERO;
+        for (BaseTransaction t : transactions) {
+            if (type.equals(t.getType())) {
+                total = total.add(t.getAmount());
+            }
+        }
+        return total;
+    }
 
-    // -------------------------------------------------------
-    // TODO TICKET-F030: importFromCSV(String filePath)
-    // -------------------------------------------------------
-    // WHAT: The reverse of export — read a CSV file and create transaction objects.
-    //
-    // HOW:  Use BufferedReader (wraps FileReader) for efficient file reading.
-    //       Skip the first line (header). For each subsequent line:
-    //         Split by comma using line.split(",")
-    //         Parse each field (id, type, amount, date, description)
-    //         Create an IncomeTransaction or ExpenseTransaction based on the type field
-    //         Add it to the transactions list.
-    //
-    // WHY:  Import/export together provide data portability.
-    //       Users can back up their data as CSV and restore it later.
-    //
-    // OBSERVE: Export, then clear the list, then import from the same file.
-    //          The list should have the same data as before.
+    public void exportToCSV(String filePath) throws IOException {
+        try (BufferedWriter bw = new BufferedWriter(new FileWriter(filePath))) {
+            bw.write("id,type,amount,date,description");
+            bw.newLine();
+            for (BaseTransaction t : transactions) {
+                bw.write(String.join(",",
+                        String.valueOf(t.getTxnId()),
+                        t.getType(),
+                        t.getAmount().toPlainString(),
+                        t.getTxnDate().toString(),
+                        csvEscape(t.getDescription())
+                ));
+                bw.newLine();
+            }
+        }
+    }
+
+    private static String csvEscape(String s) {
+        if (s == null) return "";
+        if (s.contains(",") || s.contains("\"") || s.contains("\n")) {
+            return "\"" + s.replace("\"", "\"\"") + "\"";
+        }
+        return s;
+    }
+
+    public void importFromCSV(String filePath) throws IOException {
+        try (BufferedReader br = new BufferedReader(new FileReader(filePath))) {
+            String line = br.readLine();
+            if (line == null) return;
+
+            int lineNum = 1;
+            while ((line = br.readLine()) != null) {
+                lineNum++;
+                if (line.isBlank()) continue;
+                try {
+                    String[] parts = line.split(",", -1);
+                    int id = Integer.parseInt(parts[0].trim());
+                    String type = parts[1].trim();
+                    BigDecimal amount = new BigDecimal(parts[2].trim());
+                    LocalDate date = LocalDate.parse(parts[3].trim());
+                    String desc = parts.length > 4 ? parts[4] : "";
+
+                    BaseTransaction t = switch (type) {
+                        case "INCOME" -> new IncomeTransaction(id, amount, date, desc, null);
+                        case "EXPENSE" -> new ExpenseTransaction(id, amount, date, desc, null);
+                        default -> throw new InvalidTransactionException(
+                                "Unknown type on line " + lineNum + ": " + type);
+                    };
+                    transactions.add(t);
+                } catch (NumberFormatException | java.time.format.DateTimeParseException e) {
+                    System.err.println("Skipping bad row at line " + lineNum + ": " + e.getMessage());
+                }
+            }
+        }
+    }
 
 
     // ==========================================================
