@@ -48,6 +48,10 @@ public class TransactionService {
         return new ArrayList<>(transactions);
     }
 
+    public boolean delete(int txnId) {
+        return transactions.removeIf(t -> t.getTxnId() == txnId);
+    }
+
     public List<BaseTransaction> filterByDateRange(LocalDate from, LocalDate to) {
         if (from == null || to == null) {
             throw new IllegalArgumentException("from and to must be non-null");
