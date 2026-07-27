@@ -133,6 +133,21 @@ public class TransactionDAO {
     //
     // OBSERVE: Call getByUserId(1) — you should only see transactions for user 1.
     //          Call getByUserId(999) — you should get an empty list (no crash).
+    public List<Transaction> getByUserId(int userId) throws SQLException {
+        String sql = "SELECT txn_id, user_id, category_id, amount, txn_date, description, type "
+                + "FROM transactions WHERE user_id = ? ORDER BY txn_date DESC, txn_id DESC";
+        List<Transaction> result = new ArrayList<>();
+        try (Connection conn = DatabaseConnection.getConnection();
+             PreparedStatement ps = conn.prepareStatement(sql)) {
+            ps.setInt(1, userId);
+            try (ResultSet rs = ps.executeQuery()) {
+                while (rs.next()) {
+                    result.add(mapRow(rs));
+                }
+            }
+        }
+        return result;
+    }
 
     // -------------------------------------------------------
     // TODO TICKET-F039: Implement delete(int txnId)
@@ -150,4 +165,12 @@ public class TransactionDAO {
     //
     // OBSERVE: Call delete() with a valid ID, then getAll() — the record should be gone.
     //          Call delete() with a non-existent ID — no crash, just a warning message.
+    public int delete(int txnId) throws SQLException {
+        String sql = "DELETE FROM transactions WHERE txn_id = ?";
+        try (Connection conn = DatabaseConnection.getConnection();
+             PreparedStatement ps = conn.prepareStatement(sql)) {
+            ps.setInt(1, txnId);
+            return ps.executeUpdate();
+        }
+    }
 }

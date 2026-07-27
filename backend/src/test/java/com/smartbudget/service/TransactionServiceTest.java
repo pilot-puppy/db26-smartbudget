@@ -1,6 +1,7 @@
 package com.smartbudget.service;
 
 import com.smartbudget.exception.InvalidTransactionException;
+import com.smartbudget.model.ExpenseTransaction;
 import com.smartbudget.model.IncomeTransaction;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -13,10 +14,23 @@ import static org.junit.jupiter.api.Assertions.*;
 class TransactionServiceTest {
 
     private TransactionService svc;
+    private IncomeTransaction income;
+    private ExpenseTransaction expense;
 
     @BeforeEach
     void setUp() {
-        svc = new TransactionService();   // fresh per test
+        svc = new TransactionService();
+        income = new IncomeTransaction(1, new BigDecimal("3500"),
+                LocalDate.of(2026, 1, 1), "Salary");
+        expense = new ExpenseTransaction(2, new BigDecimal("45"),
+                LocalDate.of(2026, 1, 5), "Groceries");
+    }
+
+    // TICKET-F040 — fresh SUT + fixtures per test
+    @Test
+    void initiallyEmpty() {
+        assertEquals(0, svc.getAll().size());
+        assertTrue(svc.getAll().isEmpty());
     }
 
     // TICKET-F041 — add then get
