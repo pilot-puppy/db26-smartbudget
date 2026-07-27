@@ -1,6 +1,8 @@
 package com.smartbudget.dao;
 
+import com.smartbudget.entity.Category;
 import com.smartbudget.entity.Transaction;
+import com.smartbudget.entity.User;
 import java.sql.*;
 import java.util.ArrayList;
 import java.util.List;
@@ -46,6 +48,20 @@ public class TransactionDAO {
     //
     // OBSERVE: After implementing, call insert() with a valid Transaction object.
     //          Then call getAll() — your new record should appear in the list.
+    public void insert(Transaction t) throws SQLException {
+        String sql = "INSERT INTO transactions (user_id, category_id, amount, txn_date, description, type) "
+                + "VALUES (?, ?, ?, ?, ?, ?)";
+        try (Connection conn = DatabaseConnection.getConnection();
+             PreparedStatement ps = conn.prepareStatement(sql)) {
+            ps.setLong(1, t.getUser().getUserId());
+            ps.setLong(2, t.getCategory().getCategoryId());
+            ps.setBigDecimal(3, t.getAmount());
+            ps.setDate(4, Date.valueOf(t.getTxnDate()));
+            ps.setString(5, t.getDescription());
+            ps.setString(6, t.getType());
+            ps.executeUpdate();
+        }
+    }
 
     // -------------------------------------------------------
     // TODO TICKET-F037: Implement getAll() → List<Transaction>
@@ -67,6 +83,37 @@ public class TransactionDAO {
     //
     // OBSERVE: After implementing, call getAll() and print each transaction.
     //          You should see all records from the database.
+    public List<Transaction> getAll() throws SQLException {
+        String sql = "SELECT * FROM transactions ORDER BY txn_date DESC";
+        List<Transaction> result = new ArrayList<>();
+        try (Connection conn = DatabaseConnection.getConnection();
+             Statement stmt = conn.createStatement();
+             ResultSet rs = stmt.executeQuery(sql)) {
+            while (rs.next()) {
+                result.add(mapRow(rs));
+            }
+        }
+        return result;
+    }
+
+    private static Transaction mapRow(ResultSet rs) throws SQLException {
+        Transaction t = new Transaction();
+        t.setTxnId(rs.getLong("txn_id"));
+
+        User user = new User();
+        user.setUserId(rs.getLong("user_id"));
+        t.setUser(user);
+
+        Category category = new Category();
+        category.setCategoryId(rs.getLong("category_id"));
+        t.setCategory(category);
+
+        t.setAmount(rs.getBigDecimal("amount"));
+        t.setTxnDate(rs.getDate("txn_date").toLocalDate());
+        t.setDescription(rs.getString("description"));
+        t.setType(rs.getString("type"));
+        return t;
+    }
 
     // -------------------------------------------------------
     // TODO TICKET-F038: Implement getByUserId(int userId) → List<Transaction>
@@ -86,6 +133,21 @@ public class TransactionDAO {
     //
     // OBSERVE: Call getByUserId(1) — you should only see transactions for user 1.
     //          Call getByUserId(999) — you should get an empty list (no crash).
+    public List<Transaction> getByUserId(int userId) throws SQLException {
+        String sql = "SELECT txn_id, user_id, category_id, amount, txn_date, description, type "
+                + "FROM transactions WHERE user_id = ? ORDER BY txn_date DESC, txn_id DESC";
+        List<Transaction> result = new ArrayList<>();
+        try (Connection conn = DatabaseConnection.getConnection();
+             PreparedStatement ps = conn.prepareStatement(sql)) {
+            ps.setInt(1, userId);
+            try (ResultSet rs = ps.executeQuery()) {
+                while (rs.next()) {
+                    result.add(mapRow(rs));
+                }
+            }
+        }
+        return result;
+    }
 
     // -------------------------------------------------------
     // TODO TICKET-F039: Implement delete(int txnId)
@@ -103,4 +165,12 @@ public class TransactionDAO {
     //
     // OBSERVE: Call delete() with a valid ID, then getAll() — the record should be gone.
     //          Call delete() with a non-existent ID — no crash, just a warning message.
+    public int delete(int txnId) throws SQLException {
+        String sql = "DELETE FROM transactions WHERE txn_id = ?";
+        try (Connection conn = DatabaseConnection.getConnection();
+             PreparedStatement ps = conn.prepareStatement(sql)) {
+            ps.setInt(1, txnId);
+            return ps.executeUpdate();
+        }
+    }
 }

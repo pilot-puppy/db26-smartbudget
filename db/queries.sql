@@ -170,7 +170,7 @@ GROUP BY c.name
 ORDER BY total_spent DESC
 LIMIT 3;
 
-SELECT * FROM top
+SELECT * FROM top_expense_categories;
 
 -- ============================================================
 -- TICKET-F009 (Day 1, Sprint 0) — Running balance (Window Function)
