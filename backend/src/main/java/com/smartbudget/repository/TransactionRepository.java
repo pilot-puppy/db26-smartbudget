@@ -2,7 +2,13 @@ package com.smartbudget.repository;
 
 import com.smartbudget.entity.Transaction;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
+
+import java.math.BigDecimal;
+import java.time.LocalDate;
+import java.util.List;
 
 // ============================================================
 // TICKET-F051 (Day 5, Sprint 4) — Transaction Repository
@@ -113,4 +119,19 @@ public interface TransactionRepository extends JpaRepository<Transaction, Long> 
     //
     // OBSERVE: Call sumByUserAndType(1L, "INCOME") — should return the sum of user 1's income.
     //          Call sumByUserAndType(999L, "INCOME") — should return 0 (not null), thanks to COALESCE.
+
+    List<Transaction> findByUser_UserIdOrderByTxnDateDesc(Long userId);
+
+    List<Transaction> findByType(String type);
+
+    List<Transaction> findByTxnDateBetween(LocalDate from, LocalDate to);
+
+    @Query("""
+           SELECT COALESCE(SUM(t.amount), 0)
+           FROM   Transaction t
+           WHERE  t.user.userId = :userId
+             AND  t.type        = :type
+           """)
+    BigDecimal sumByUserAndType(@Param("userId") Long userId,
+                                @Param("type") String type);
 }

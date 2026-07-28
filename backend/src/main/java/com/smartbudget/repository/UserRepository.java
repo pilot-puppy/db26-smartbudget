@@ -4,6 +4,8 @@ import com.smartbudget.entity.User;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.stereotype.Repository;
 
+import java.util.Optional;
+
 // ============================================================
 // TICKET-F050 (Day 5, Sprint 4) — User Repository
 // ============================================================
@@ -66,4 +68,8 @@ public interface UserRepository extends JpaRepository<User, Long> {
     //
     // OBSERVE: existsByEmail("alice@db.com") → should return true (seed data).
     //          existsByEmail("new@db.com") → should return false.
+
+    Optional<User> findByEmail(String email);
+
+    boolean existsByEmail(String email);
 }
