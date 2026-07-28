@@ -4,6 +4,8 @@ import com.smartbudget.entity.Category;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.stereotype.Repository;
 
+import java.util.List;
+
 // ============================================================
 // TICKET-F052 (Day 5, Sprint 4) — Category Repository
 // ============================================================
@@ -44,4 +46,6 @@ public interface CategoryRepository extends JpaRepository<Category, Long> {
     //          repo.findByType("INCOME") → should return Salary, Freelance
     //          repo.findByType("EXPENSE") → should return Groceries, Rent, Transport
     //          (based on the seed data in data.sql)
+
+    List<Category> findByType(String type);
 }

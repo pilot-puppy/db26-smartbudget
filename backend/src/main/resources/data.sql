@@ -33,3 +33,15 @@ INSERT INTO transactions (user_id, category_id, amount, txn_date, description, t
 INSERT INTO transactions (user_id, category_id, amount, txn_date, description, type) VALUES (5, 3,   40.00, '2026-03-10', 'Lunch',              'EXPENSE');
 INSERT INTO transactions (user_id, category_id, amount, txn_date, description, type) VALUES (1, 1, 3500.00, '2026-04-01', 'April salary',       'INCOME');
 INSERT INTO transactions (user_id, category_id, amount, txn_date, description, type) VALUES (1, 3,   62.00, '2026-04-08', 'Grocery run',        'EXPENSE');
+
+-- TICKET-F053: 10 additional transactions (15 original + 10 = 25 total)
+INSERT INTO transactions (user_id, category_id, amount, txn_date, description, type) VALUES (1, 3,   12.50, '2026-06-02', 'Lunch',              'EXPENSE');
+INSERT INTO transactions (user_id, category_id, amount, txn_date, description, type) VALUES (1, 4,   18.00, '2026-06-05', 'Tube fare',          'EXPENSE');
+INSERT INTO transactions (user_id, category_id, amount, txn_date, description, type) VALUES (2, 1, 4200.00, '2026-06-01', 'June salary',        'INCOME');
+INSERT INTO transactions (user_id, category_id, amount, txn_date, description, type) VALUES (3, 2,  650.00, '2026-06-09', 'Freelance gig',      'INCOME');
+INSERT INTO transactions (user_id, category_id, amount, txn_date, description, type) VALUES (3, 3,   80.00, '2026-06-12', 'Dinner out',         'EXPENSE');
+INSERT INTO transactions (user_id, category_id, amount, txn_date, description, type) VALUES (4, 5,  130.00, '2026-06-15', 'Electric bill',      'EXPENSE');
+INSERT INTO transactions (user_id, category_id, amount, txn_date, description, type) VALUES (5, 1, 2900.00, '2026-06-01', 'June salary',        'INCOME');
+INSERT INTO transactions (user_id, category_id, amount, txn_date, description, type) VALUES (5, 5,   89.00, '2026-06-18', 'Internet',           'EXPENSE');
+INSERT INTO transactions (user_id, category_id, amount, txn_date, description, type) VALUES (1, 1, 3500.00, '2026-06-01', 'June salary',        'INCOME');
+INSERT INTO transactions (user_id, category_id, amount, txn_date, description, type) VALUES (4, 3,   45.00, '2026-06-22', 'Groceries',          'EXPENSE');
