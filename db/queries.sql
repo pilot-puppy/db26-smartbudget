@@ -128,17 +128,17 @@ LIMIT 5;
 --
 -- OBSERVE: For each user, the running_total should increase with each row.
 --          The last row for each user should equal their total sum.
-
-CREATE OR REPLACE VIEW top_expense_categories AS
-SELECT c.name AS category, SUM(t.amount) AS total_spent
+SELECT t.txn_id,
+       u.name        AS user_name,
+       c.name        AS category,
+       t.amount,
+       t.txn_date,
+       t.description,
+       t.type
 FROM transactions t
+JOIN users      u ON t.user_id     = u.user_id
 JOIN categories c ON t.category_id = c.category_id
-WHERE c.type = 'EXPENSE'
-GROUP BY c.name
-ORDER BY total_spent DESC
-LIMIT 3;
-
-SELECT * FROM top_expense_categories;
+ORDER BY t.txn_date DESC, t.txn_id;
 
 -- ============================================================
 -- TODO TICKET-F008: Create VIEW — monthly_summary
@@ -159,12 +159,12 @@ SELECT * FROM top_expense_categories;
 --
 -- OBSERVE: After creating, run: SELECT * FROM monthly_summary;
 --          You should see one row per user per month with income/expense split.
-CREATE OR REPLACE VIEW top_expense_categories AS
-SELECT c.name           AS category,
-       SUM(t.amount)    AS total_spent,
-       COUNT(*)         AS txn_count
+CREATE OR REPLACE VIEW monthly_summary AS
+SELECT c.name   AS category,
+SUM(t.amount)   AS total_spent,
+COUNT(*)    AS txn_count
 FROM transactions t
-JOIN categories  c ON t.category_id = c.category_id
+JOIN categories c ON t.category_id = c.category_id
 WHERE c.type = 'EXPENSE'
 GROUP BY c.name
 ORDER BY total_spent DESC
