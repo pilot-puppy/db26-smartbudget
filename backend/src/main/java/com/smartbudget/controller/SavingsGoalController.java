@@ -1,5 +1,10 @@
 package com.smartbudget.controller;
 
+import com.smartbudget.entity.SavingsGoal;
+import com.smartbudget.repository.SavingsGoalRepository;
+import org.springframework.web.bind.annotation.*;
+import java.util.List;
+
 // ============================================================
 // TICKET-F061/F062 (Day 6, Sprint 5) — Savings Goal REST Controller
 // ============================================================
@@ -15,6 +20,8 @@ package com.smartbudget.controller;
 //
 // REFERENCE: See CategoryController.java for the basic pattern.
 // ============================================================
+@RestController
+@RequestMapping("/api/goals")
 public class SavingsGoalController {
 
     // -------------------------------------------------------
@@ -32,6 +39,8 @@ public class SavingsGoalController {
     // OBSERVE: After adding, restart the app and check the Spring boot logs
     //          for "Mapped ... /api/goals" to confirm registration.
 
+
+    
     // -------------------------------------------------------
     // TODO TICKET-F061: Step 2 — Inject dependencies
     // -------------------------------------------------------
@@ -48,7 +57,11 @@ public class SavingsGoalController {
     //       the controller stays simple, and validation lives in one place.
     //
     // OBSERVE: The app should boot without errors if the injected bean exists.
+ private final SavingsGoalRepository repo;
 
+    public SavingsGoalController(SavingsGoalRepository repo) {
+        this.repo = repo;
+    }
     // -------------------------------------------------------
     // TODO TICKET-F061: Step 3 — GET /api/goals/user/{userId}
     // -------------------------------------------------------
@@ -67,7 +80,10 @@ public class SavingsGoalController {
     //          Call GET /api/goals/user/999 — should return an empty array.
     //
     // REQUIRES: A custom query method findByUser_UserId() in SavingsGoalRepository.
-
+@GetMapping("/user/{userId}")
+    public List<SavingsGoal> byUser(@PathVariable Long userId) {
+        return repo.findByUser_UserId(userId);
+    }
     // -------------------------------------------------------
     // TODO TICKET-F061: Step 4 — POST /api/goals (create a new goal)
     // -------------------------------------------------------
@@ -83,7 +99,12 @@ public class SavingsGoalController {
     //
     // OBSERVE: POST a new goal via Postman with name, targetAmount, and deadline.
     //          Check the H2 console — the new row should appear in the savings_goals table.
-
+curl http://localhost:8080/api/goals/user/1
+# [
+#   {"goalId":1, "user":{...}, "goalName":"Emergency Fun",
+#    "targetAmount":10000.00, "currentAmount":0.00, "deadline":"2027-06-01"},
+#   ...
+# ]
     // -------------------------------------------------------
     // TODO TICKET-F062: Step 5 — PUT /api/goals/{id}/contribute
     // -------------------------------------------------------
@@ -110,4 +131,28 @@ public class SavingsGoalController {
     //          GET the goal again — currentAmount should now be 600.
     //          Try contributing a negative amount — what happens?
     //          (If using SavingsGoalService, it should reject with HTTP 400.)
+    public record ContributionRequest(BigDecimal amount) { }
+
+    @PutMapping("/{id}/contribute")
+    public SavingsGoal contribute(@PathVariable Long id,
+                                @RequestBody ContributionRequest body) {
+        SavingsGoal goal = repo.findById(id)
+            .orElseThrow(() -> new ResourceNotFoundException(
+                "Goal " + id + " not found"));
+
+        BigDecimal amount = body.amount();
+        if (amount == null || amount.compareTo(BigDecimal.ZERO) <= 0) {
+            throw new InvalidTransactionException("Contribution must be > 0");
+        }
+
+        BigDecimal newTotal = goal.getCurrentAmount().add(amount);
+        if (newTotal.compareTo(goal.getTargetAmount()) > 0) {
+            BigDecimal over = newTotal.subtract(goal.getTargetAmount());
+            throw new InvalidTransactionException(
+                "Contribution exceeds target by " + over);
+        }
+
+        goal.setCurrentAmount(newTotal);
+        return repo.save(goal);
+    }
 }

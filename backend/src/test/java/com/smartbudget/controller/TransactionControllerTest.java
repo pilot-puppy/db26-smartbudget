@@ -1,5 +1,15 @@
 package com.smartbudget.controller;
 
+import org.junit.jupiter.api.Test;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
+import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.http.MediaType;
+import org.springframework.test.web.servlet.MockMvc;
+
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
+
 // ============================================================
 // TICKET-F064 to F066 (Day 6, Sprint 5) — Integration Tests with MockMvc
 // ============================================================
@@ -28,6 +38,8 @@ package com.smartbudget.controller;
 // PREREQUISITES: TransactionController must be fully implemented (TICKET-F056 to F059)
 //                with @RestController, @RequestMapping, and all endpoint methods.
 // ============================================================
+@SpringBootTest
+@AutoConfigureMockMvc
 public class TransactionControllerTest {
 
     // -------------------------------------------------------
@@ -51,7 +63,7 @@ public class TransactionControllerTest {
     //
     // OBSERVE: The test class should compile. Running it may take a few seconds
     //          because Spring starts the full application context.
-
+    @Autowired private MockMvc mockMvc;
     // -------------------------------------------------------
     // TODO TICKET-F064: Step 2 — Write testCreateTransaction_validInput
     // -------------------------------------------------------
@@ -81,7 +93,13 @@ public class TransactionControllerTest {
     //          If it returns 404 → the endpoint isn't mapped (check @RequestMapping).
     //          If it returns 400 → the JSON format might be wrong.
     //          If it returns 500 → check the server logs for the actual error.
-
+    @Test
+    void getAll_returns200AndJsonArray() throws Exception {
+        mockMvc.perform(get("/api/transactions"))
+               .andExpect(status().isOk())
+               .andExpect(content().contentTypeCompatibleWith(MediaType.APPLICATION_JSON))
+               .andExpect(jsonPath("$.length()").value(15));   // 15 seeded txns
+    }
     // -------------------------------------------------------
     // TODO TICKET-F065: Step 3 — Write testCreateTransaction_negativeAmount
     // -------------------------------------------------------
