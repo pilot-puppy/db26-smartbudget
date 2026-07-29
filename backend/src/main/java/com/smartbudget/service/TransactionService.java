@@ -279,12 +279,22 @@ public class TransactionService {
     private final UserRepository        userRepo;
     private final CategoryRepository    categoryRepo;
 
+    // Spring uses this constructor (only one annotated) to inject the JPA repositories.
+    @org.springframework.beans.factory.annotation.Autowired
     public TransactionService(TransactionRepository txnRepo,
                               UserRepository userRepo,
                               CategoryRepository categoryRepo) {
         this.txnRepo      = txnRepo;
         this.userRepo     = userRepo;
         this.categoryRepo = categoryRepo;
+    }
+
+    // No-arg constructor kept for the Day 3/4 in-memory usage (console app, unit tests)
+    // that predates the Day 6 JPA repositories.
+    public TransactionService() {
+        this.txnRepo      = null;
+        this.userRepo     = null;
+        this.categoryRepo = null;
     }
     // -------------------------------------------------------
     // TODO TICKET-F063: Step 2 — Implement CRUD methods
@@ -307,8 +317,10 @@ public class TransactionService {
     //          POST a transaction with amount = -10 → should get HTTP 400.
     //          GET a non-existent ID → should get HTTP 404.
     //          These responses come from the exceptions caught by GlobalExceptionHandler.
+    // Named getAllTransactions() (not getAll()) to avoid colliding with the
+    // Day 3/4 in-memory getAll() above, which returns List<BaseTransaction>.
     @Transactional(readOnly = true)
-    public List<Transaction> getAll() {
+    public List<Transaction> getAllTransactions() {
         return txnRepo.findAll();
     }
 
@@ -374,9 +386,6 @@ public class TransactionService {
         if (date != null) t.setTxnDate(date);
         if (description != null) t.setDescription(description);
         if (type != null) t.setType(type);
-        return service.create(t.getUser().getUserId(),
-                      t.getCategory().getCategoryId(),
-                      t.getAmount(), t.getTxnDate(),
-                      t.getDescription(), t.getType());;
+        return txnRepo.save(t);
     }
 }
