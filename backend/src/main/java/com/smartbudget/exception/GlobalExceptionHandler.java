@@ -2,6 +2,7 @@ package com.smartbudget.exception;
 
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.validation.FieldError;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
@@ -50,13 +51,7 @@ public class GlobalExceptionHandler {
     //          not an HTML error page.
     @ExceptionHandler(ResourceNotFoundException.class)
     public ResponseEntity<Map<String,Object>> handleNotFound(ResourceNotFoundException e) {
-        return ResponseEntity
-                .status(HttpStatus.NOT_FOUND)
-                .body(Map.of(
-                    "status",    404,
-                    "error",     "Not Found",
-                    "message",   e.getMessage(),
-                    "timestamp", LocalDateTime.now().toString()));
+        return buildResponse(HttpStatus.NOT_FOUND, e.getMessage());
     }
     // -------------------------------------------------------
     // TODO TICKET-F065: Step 2 — Handle InvalidTransactionException → HTTP 400
@@ -75,13 +70,7 @@ public class GlobalExceptionHandler {
     //          Response should be 400 with message "Amount must be greater than zero."
     @ExceptionHandler(InvalidTransactionException.class)
     public ResponseEntity<Map<String,Object>> handleInvalid(InvalidTransactionException e) {
-        return ResponseEntity
-                .status(HttpStatus.BAD_REQUEST)
-                .body(Map.of(
-                    "status",    400,
-                    "error",     "Bad Request",
-                    "message",   e.getMessage(),
-                    "timestamp", LocalDateTime.now().toString()));
+        return buildResponse(HttpStatus.BAD_REQUEST, e.getMessage());
     }
 
     @ExceptionHandler(Exception.class)
@@ -114,8 +103,20 @@ public class GlobalExceptionHandler {
     // OBSERVE: POST to /api/users with empty name and invalid email via Postman.
     //          Response should be 400 with fieldErrors like:
     //          { "name": "Name is required", "email": "Valid email required" }
-    
-    
+    @ExceptionHandler(MethodArgumentNotValidException.class)
+    public ResponseEntity<Map<String,Object>> handleValidation(MethodArgumentNotValidException e) {
+        Map<String, String> fieldErrors = new HashMap<>();
+        for (FieldError fe : e.getBindingResult().getFieldErrors()) {
+            fieldErrors.put(fe.getField(), fe.getDefaultMessage());
+        }
+        Map<String, Object> body = new HashMap<>();
+        body.put("status", 400);
+        body.put("error", "Bad Request");
+        body.put("fieldErrors", fieldErrors);
+        body.put("timestamp", LocalDateTime.now().toString());
+        return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(body);
+    }
+
     // -------------------------------------------------------
     // TODO TICKET-F065: Step 4 — Create a private helper method
     // -------------------------------------------------------
@@ -129,5 +130,11 @@ public class GlobalExceptionHandler {
     // WHY:  This is the DRY principle applied to your exception handler.
     //       If you later change the error format (e.g., add a "path" field),
     //       you change it in one place, not two.
-    
+    private ResponseEntity<Map<String,Object>> buildResponse(HttpStatus status, String message) {
+        return ResponseEntity.status(status).body(Map.of(
+                "status",    status.value(),
+                "error",     status.getReasonPhrase(),
+                "message",   message,
+                "timestamp", LocalDateTime.now().toString()));
+    }
 }

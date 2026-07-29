@@ -1,0 +1,284 @@
+{
+  "info": {
+    "name": "SmartBudget API",
+    "description": "TICKET-F068 (Day 6, Sprint 5) - covers all implemented endpoints plus negative-case siblings.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    { "key": "baseUrl", "value": "http://localhost:8080", "type": "string" },
+    { "key": "createdTxnId", "value": "", "type": "string" }
+  ],
+  "item": [
+    {
+      "name": "Transactions",
+      "item": [
+        {
+          "name": "GET all transactions (200)",
+          "request": {
+            "method": "GET",
+            "url": { "raw": "{{baseUrl}}/api/transactions", "host": ["{{baseUrl}}"], "path": ["api", "transactions"] }
+          },
+          "event": [{
+            "listen": "test",
+            "script": { "exec": [
+              "pm.test('Status is 200', () => pm.response.to.have.status(200));",
+              "pm.test('Body is an array', () => Array.isArray(pm.response.json()));"
+            ] }
+          }]
+        },
+        {
+          "name": "GET transactions by user 1 (200, non-empty)",
+          "request": {
+            "method": "GET",
+            "url": { "raw": "{{baseUrl}}/api/transactions/user/1", "host": ["{{baseUrl}}"], "path": ["api", "transactions", "user", "1"] }
+          },
+          "event": [{
+            "listen": "test",
+            "script": { "exec": [
+              "pm.test('Status is 200', () => pm.response.to.have.status(200));",
+              "pm.test('Array is not empty', () => pm.response.json().length > 0);"
+            ] }
+          }]
+        },
+        {
+          "name": "GET transactions by unknown user 9999 (200, empty array)",
+          "request": {
+            "method": "GET",
+            "url": { "raw": "{{baseUrl}}/api/transactions/user/9999", "host": ["{{baseUrl}}"], "path": ["api", "transactions", "user", "9999"] }
+          },
+          "event": [{
+            "listen": "test",
+            "script": { "exec": [
+              "pm.test('Status is 200 (not 404)', () => pm.response.to.have.status(200));",
+              "pm.test('Array is empty', () => pm.response.json().length === 0);"
+            ] }
+          }]
+        },
+        {
+          "name": "POST create transaction - valid (201)",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"user\": {\"userId\": 1},\n  \"category\": {\"categoryId\": 1},\n  \"amount\": 75.00,\n  \"txnDate\": \"2026-05-15\",\n  \"description\": \"Postman test\",\n  \"type\": \"EXPENSE\"\n}"
+            },
+            "url": { "raw": "{{baseUrl}}/api/transactions", "host": ["{{baseUrl}}"], "path": ["api", "transactions"] }
+          },
+          "event": [{
+            "listen": "test",
+            "script": { "exec": [
+              "pm.test('Status is 201', () => pm.response.to.have.status(201));",
+              "const json = pm.response.json();",
+              "pm.test('Has generated txnId', () => typeof json.txnId === 'number');",
+              "pm.collectionVariables.set('createdTxnId', json.txnId);"
+            ] }
+          }]
+        },
+        {
+          "name": "POST create transaction - negative amount (400)",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"user\": {\"userId\": 1},\n  \"category\": {\"categoryId\": 1},\n  \"amount\": -10,\n  \"txnDate\": \"2026-05-15\",\n  \"description\": \"bad\",\n  \"type\": \"EXPENSE\"\n}"
+            },
+            "url": { "raw": "{{baseUrl}}/api/transactions", "host": ["{{baseUrl}}"], "path": ["api", "transactions"] }
+          },
+          "event": [{
+            "listen": "test",
+            "script": { "exec": [
+              "pm.test('Status is 400', () => pm.response.to.have.status(400));",
+              "pm.test('fieldErrors.amount mentions the rule', () => pm.response.json().fieldErrors.amount.includes('greater than zero'));"
+            ] }
+          }]
+        },
+        {
+          "name": "DELETE created transaction (204)",
+          "request": {
+            "method": "DELETE",
+            "url": { "raw": "{{baseUrl}}/api/transactions/{{createdTxnId}}", "host": ["{{baseUrl}}"], "path": ["api", "transactions", "{{createdTxnId}}"] }
+          },
+          "event": [{
+            "listen": "test",
+            "script": { "exec": [
+              "pm.test('Status is 204', () => pm.response.to.have.status(204));"
+            ] }
+          }]
+        },
+        {
+          "name": "DELETE unknown transaction 999999 (404)",
+          "request": {
+            "method": "DELETE",
+            "url": { "raw": "{{baseUrl}}/api/transactions/999999", "host": ["{{baseUrl}}"], "path": ["api", "transactions", "999999"] }
+          },
+          "event": [{
+            "listen": "test",
+            "script": { "exec": [
+              "pm.test('Status is 404', () => pm.response.to.have.status(404));"
+            ] }
+          }]
+        }
+      ]
+    },
+    {
+      "name": "Users",
+      "item": [
+        {
+          "name": "GET all users (200)",
+          "request": {
+            "method": "GET",
+            "url": { "raw": "{{baseUrl}}/api/users", "host": ["{{baseUrl}}"], "path": ["api", "users"] }
+          },
+          "event": [{ "listen": "test", "script": { "exec": [
+            "pm.test('Status is 200', () => pm.response.to.have.status(200));"
+          ] } }]
+        },
+        {
+          "name": "GET user 1 (200)",
+          "request": {
+            "method": "GET",
+            "url": { "raw": "{{baseUrl}}/api/users/1", "host": ["{{baseUrl}}"], "path": ["api", "users", "1"] }
+          },
+          "event": [{ "listen": "test", "script": { "exec": [
+            "pm.test('Status is 200', () => pm.response.to.have.status(200));"
+          ] } }]
+        },
+        {
+          "name": "GET unknown user 9999 (404)",
+          "request": {
+            "method": "GET",
+            "url": { "raw": "{{baseUrl}}/api/users/9999", "host": ["{{baseUrl}}"], "path": ["api", "users", "9999"] }
+          },
+          "event": [{ "listen": "test", "script": { "exec": [
+            "pm.test('Status is 404', () => pm.response.to.have.status(404));"
+          ] } }]
+        },
+        {
+          "name": "POST create user - valid (201)",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": { "mode": "raw", "raw": "{\n  \"name\": \"Postman Tester\",\n  \"email\": \"postman.tester@bank.com\"\n}" },
+            "url": { "raw": "{{baseUrl}}/api/users", "host": ["{{baseUrl}}"], "path": ["api", "users"] }
+          },
+          "event": [{ "listen": "test", "script": { "exec": [
+            "pm.test('Status is 201', () => pm.response.to.have.status(201));"
+          ] } }]
+        },
+        {
+          "name": "POST create user - invalid (400, field errors)",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": { "mode": "raw", "raw": "{\n  \"name\": \"\",\n  \"email\": \"not-an-email\"\n}" },
+            "url": { "raw": "{{baseUrl}}/api/users", "host": ["{{baseUrl}}"], "path": ["api", "users"] }
+          },
+          "event": [{ "listen": "test", "script": { "exec": [
+            "pm.test('Status is 400', () => pm.response.to.have.status(400));",
+            "pm.test('Has fieldErrors for name and email', () => {",
+            "  const fe = pm.response.json().fieldErrors;",
+            "  pm.expect(fe).to.have.property('name');",
+            "  pm.expect(fe).to.have.property('email');",
+            "});"
+          ] } }]
+        }
+      ]
+    },
+    {
+      "name": "Categories",
+      "item": [
+        {
+          "name": "GET all categories (200)",
+          "request": {
+            "method": "GET",
+            "url": { "raw": "{{baseUrl}}/api/categories", "host": ["{{baseUrl}}"], "path": ["api", "categories"] }
+          },
+          "event": [{ "listen": "test", "script": { "exec": [
+            "pm.test('Status is 200', () => pm.response.to.have.status(200));",
+            "pm.test('Returns 5 seed categories', () => pm.response.json().length === 5);"
+          ] } }]
+        }
+      ]
+    },
+    {
+      "name": "Savings Goals",
+      "item": [
+        {
+          "name": "GET goals for user 1 (200)",
+          "request": {
+            "method": "GET",
+            "url": { "raw": "{{baseUrl}}/api/goals/user/1", "host": ["{{baseUrl}}"], "path": ["api", "goals", "user", "1"] }
+          },
+          "event": [{ "listen": "test", "script": { "exec": [
+            "pm.test('Status is 200', () => pm.response.to.have.status(200));",
+            "pm.test('Array is not empty', () => pm.response.json().length > 0);"
+          ] } }]
+        },
+        {
+          "name": "GET goals for unknown user 9999 (200, empty array)",
+          "request": {
+            "method": "GET",
+            "url": { "raw": "{{baseUrl}}/api/goals/user/9999", "host": ["{{baseUrl}}"], "path": ["api", "goals", "user", "9999"] }
+          },
+          "event": [{ "listen": "test", "script": { "exec": [
+            "pm.test('Status is 200', () => pm.response.to.have.status(200));",
+            "pm.test('Array is empty', () => pm.response.json().length === 0);"
+          ] } }]
+        },
+        {
+          "name": "POST create goal (201)",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"userId\": 1,\n  \"name\": \"Postman Goal\",\n  \"targetAmount\": 1000,\n  \"deadline\": \"2026-12-01\"\n}"
+            },
+            "url": { "raw": "{{baseUrl}}/api/goals", "host": ["{{baseUrl}}"], "path": ["api", "goals"] }
+          },
+          "event": [{ "listen": "test", "script": { "exec": [
+            "pm.test('Status is 201', () => pm.response.to.have.status(201));"
+          ] } }]
+        },
+        {
+          "name": "PUT contribute to goal 1 - valid (200)",
+          "request": {
+            "method": "PUT",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": { "mode": "raw", "raw": "{\n  \"amount\": 100\n}" },
+            "url": { "raw": "{{baseUrl}}/api/goals/1/contribute", "host": ["{{baseUrl}}"], "path": ["api", "goals", "1", "contribute"] }
+          },
+          "event": [{ "listen": "test", "script": { "exec": [
+            "pm.test('Status is 200', () => pm.response.to.have.status(200));"
+          ] } }]
+        },
+        {
+          "name": "PUT contribute to goal 1 - zero amount (400)",
+          "request": {
+            "method": "PUT",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": { "mode": "raw", "raw": "{\n  \"amount\": 0\n}" },
+            "url": { "raw": "{{baseUrl}}/api/goals/1/contribute", "host": ["{{baseUrl}}"], "path": ["api", "goals", "1", "contribute"] }
+          },
+          "event": [{ "listen": "test", "script": { "exec": [
+            "pm.test('Status is 400', () => pm.response.to.have.status(400));"
+          ] } }]
+        },
+        {
+          "name": "PUT contribute to unknown goal 9999 (404)",
+          "request": {
+            "method": "PUT",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": { "mode": "raw", "raw": "{\n  \"amount\": 50\n}" },
+            "url": { "raw": "{{baseUrl}}/api/goals/9999/contribute", "host": ["{{baseUrl}}"], "path": ["api", "goals", "9999", "contribute"] }
+          },
+          "event": [{ "listen": "test", "script": { "exec": [
+            "pm.test('Status is 404', () => pm.response.to.have.status(404));"
+          ] } }]
+        }
+      ]
+    }
+  ]
+}
