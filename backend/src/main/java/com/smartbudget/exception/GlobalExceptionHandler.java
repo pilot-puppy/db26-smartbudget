@@ -48,7 +48,16 @@ public class GlobalExceptionHandler {
     // OBSERVE: After implementing, build a controller endpoint that throws ResourceNotFoundException.
     //          Call it with Postman — you should see a clean JSON response with status 404,
     //          not an HTML error page.
-
+    @ExceptionHandler(ResourceNotFoundException.class)
+    public ResponseEntity<Map<String,Object>> handleNotFound(ResourceNotFoundException e) {
+        return ResponseEntity
+                .status(HttpStatus.NOT_FOUND)
+                .body(Map.of(
+                    "status",    404,
+                    "error",     "Not Found",
+                    "message",   e.getMessage(),
+                    "timestamp", LocalDateTime.now().toString()));
+    }
     // -------------------------------------------------------
     // TODO TICKET-F065: Step 2 — Handle InvalidTransactionException → HTTP 400
     // -------------------------------------------------------
@@ -64,7 +73,27 @@ public class GlobalExceptionHandler {
     //
     // OBSERVE: POST a transaction with amount = -10 via Postman.
     //          Response should be 400 with message "Amount must be greater than zero."
+    @ExceptionHandler(InvalidTransactionException.class)
+    public ResponseEntity<Map<String,Object>> handleInvalid(InvalidTransactionException e) {
+        return ResponseEntity
+                .status(HttpStatus.BAD_REQUEST)
+                .body(Map.of(
+                    "status",    400,
+                    "error",     "Bad Request",
+                    "message",   e.getMessage(),
+                    "timestamp", LocalDateTime.now().toString()));
+    }
 
+    @ExceptionHandler(Exception.class)
+    public ResponseEntity<Map<String,Object>> handleOther(Exception e) {
+        return ResponseEntity
+                .status(HttpStatus.INTERNAL_SERVER_ERROR)
+                .body(Map.of(
+                    "status",    500,
+                    "error",     "Internal Server Error",
+                    "message",   e.getClass().getSimpleName() + ": " + e.getMessage(),
+                    "timestamp", LocalDateTime.now().toString()));
+}
     // -------------------------------------------------------
     // TODO TICKET-F065: Step 3 — Handle MethodArgumentNotValidException → HTTP 400 + field errors
     // -------------------------------------------------------
@@ -85,7 +114,8 @@ public class GlobalExceptionHandler {
     // OBSERVE: POST to /api/users with empty name and invalid email via Postman.
     //          Response should be 400 with fieldErrors like:
     //          { "name": "Name is required", "email": "Valid email required" }
-
+    
+    
     // -------------------------------------------------------
     // TODO TICKET-F065: Step 4 — Create a private helper method
     // -------------------------------------------------------
@@ -99,4 +129,5 @@ public class GlobalExceptionHandler {
     // WHY:  This is the DRY principle applied to your exception handler.
     //       If you later change the error format (e.g., add a "path" field),
     //       you change it in one place, not two.
+    
 }

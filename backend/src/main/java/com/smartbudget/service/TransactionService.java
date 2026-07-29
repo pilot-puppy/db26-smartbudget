@@ -19,6 +19,13 @@ import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
 
+import com.smartbudget.entity.*;
+import com.smartbudget.exception.*;
+import com.smartbudget.repository.*;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+
+
 // ============================================================
 // TransactionService — evolves across THREE days:
 //
@@ -28,6 +35,7 @@ import java.util.stream.Collectors;
 //
 // Each day BUILDS on the previous — don't delete old code, evolve it.
 // ============================================================
+@Service
 public class TransactionService {
 
     // ==========================================================
@@ -267,7 +275,17 @@ public class TransactionService {
     //       services handle rules, repositories handle data access.
     //
     // OBSERVE: The app should still boot. Check Spring logs for "Creating bean: transactionService".
+    private final TransactionRepository txnRepo;
+    private final UserRepository        userRepo;
+    private final CategoryRepository    categoryRepo;
 
+    public TransactionService(TransactionRepository txnRepo,
+                              UserRepository userRepo,
+                              CategoryRepository categoryRepo) {
+        this.txnRepo      = txnRepo;
+        this.userRepo     = userRepo;
+        this.categoryRepo = categoryRepo;
+    }
     // -------------------------------------------------------
     // TODO TICKET-F063: Step 2 — Implement CRUD methods
     // -------------------------------------------------------
@@ -289,4 +307,76 @@ public class TransactionService {
     //          POST a transaction with amount = -10 → should get HTTP 400.
     //          GET a non-existent ID → should get HTTP 404.
     //          These responses come from the exceptions caught by GlobalExceptionHandler.
+    @Transactional(readOnly = true)
+    public List<Transaction> getAll() {
+        return txnRepo.findAll();
+    }
+
+    @Transactional(readOnly = true)
+    public Transaction getById(Long id) {
+        return txnRepo.findById(id).orElseThrow(
+            () -> new ResourceNotFoundException("Transaction " + id + " not found"));
+    }
+
+    @Transactional(readOnly = true)
+    public List<Transaction> getByUserId(Long userId) {
+        return txnRepo.findByUser_UserIdOrderByTxnDateDesc(userId);
+    }
+
+    @Transactional
+    public Transaction create(Long userId, Long categoryId,
+                              BigDecimal amount, LocalDate date,
+                              String description, String type) {
+        if (amount == null || amount.compareTo(BigDecimal.ZERO) <= 0) {
+            throw new InvalidTransactionException("amount must be > 0");
+        }
+        if (type == null || (!"INCOME".equals(type) && !"EXPENSE".equals(type))) {
+            throw new InvalidTransactionException(
+                "type must be 'INCOME' or 'EXPENSE'");
+        }
+        if (date != null && date.isAfter(LocalDate.now())) {
+            throw new InvalidTransactionException("date cannot be in the future");
+        }
+
+        User user = userRepo.findById(userId).orElseThrow(
+            () -> new ResourceNotFoundException("User " + userId + " not found"));
+        Category category = categoryRepo.findById(categoryId).orElseThrow(
+            () -> new ResourceNotFoundException("Category " + categoryId + " not found"));
+
+        Transaction t = new Transaction();
+        t.setUser(user);
+        t.setCategory(category);
+        t.setAmount(amount);
+        t.setTxnDate(date != null ? date : LocalDate.now());
+        t.setDescription(description);
+        t.setType(type);
+        return txnRepo.save(t);
+    }
+
+    @Transactional
+    public void delete(Long id) {
+        if (!txnRepo.existsById(id)) {
+            throw new ResourceNotFoundException("Transaction " + id + " not found");
+        }
+        txnRepo.deleteById(id);
+    }
+
+    @Transactional
+    public Transaction update(Long id, BigDecimal amount, LocalDate date,
+                              String description, String type) {
+        Transaction t = getById(id);
+        if (amount != null) {
+            if (amount.compareTo(BigDecimal.ZERO) <= 0) {
+                throw new InvalidTransactionException("amount must be > 0");
+            }
+            t.setAmount(amount);
+        }
+        if (date != null) t.setTxnDate(date);
+        if (description != null) t.setDescription(description);
+        if (type != null) t.setType(type);
+        return service.create(t.getUser().getUserId(),
+                      t.getCategory().getCategoryId(),
+                      t.getAmount(), t.getTxnDate(),
+                      t.getDescription(), t.getType());;
+    }
 }
