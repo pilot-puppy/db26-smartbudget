@@ -13,7 +13,11 @@ import java.io.IOException;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.util.ArrayList;
+import java.util.Comparator;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
+import java.util.stream.Collectors;
 
 import com.smartbudget.entity.*;
 import com.smartbudget.exception.*;
@@ -36,9 +40,13 @@ public class TransactionService {
 
     // ==========================================================
     //  DAY 3 (Sprint 2): Plain Java with ArrayList
+    //  → storage was refactored to a Map by TICKET-F032 (see Day 4 below);
+    //    the Day 3 methods below now read from transactions.values().
     // ==========================================================
 
-    private final List<BaseTransaction> transactions = new ArrayList<>();
+    // LinkedHashMap (a HashMap subclass) keeps insertion order, so getAll()
+    // and exportToCSV stay reproducible across runs.
+    private final Map<String, BaseTransaction> transactions = new LinkedHashMap<>();
 
     public void addTransaction(BaseTransaction t) {
         if (t == null) {
@@ -48,12 +56,12 @@ public class TransactionService {
             throw new InvalidTransactionException(
                     "description must not be blank for transaction id=" + t.getTxnId());
         }
-        transactions.add(t);
+        transactions.put(String.valueOf(t.getTxnId()), t);
     }
 
     public List<BaseTransaction> getAll() {
-        // defensive copy so callers can't mutate our internal list
-        return new ArrayList<>(transactions);
+        // defensive copy so callers can't mutate our internal storage
+        return new ArrayList<>(transactions.values());
     }
 
     public List<BaseTransaction> filterByDateRange(LocalDate from, LocalDate to) {
@@ -64,7 +72,7 @@ public class TransactionService {
             return new ArrayList<>();
         }
         List<BaseTransaction> result = new ArrayList<>();
-        for (BaseTransaction t : transactions) {
+        for (BaseTransaction t : transactions.values()) {
             LocalDate d = t.getTxnDate();
             if (!d.isBefore(from) && !d.isAfter(to)) {
                 result.add(t);
@@ -78,7 +86,7 @@ public class TransactionService {
             throw new IllegalArgumentException("type must not be null");
         }
         BigDecimal total = BigDecimal.ZERO;
-        for (BaseTransaction t : transactions) {
+        for (BaseTransaction t : transactions.values()) {
             if (type.equals(t.getType())) {
                 total = total.add(t.getAmount());
             }
@@ -90,7 +98,7 @@ public class TransactionService {
         try (BufferedWriter bw = new BufferedWriter(new FileWriter(filePath))) {
             bw.write("id,type,amount,date,description");
             bw.newLine();
-            for (BaseTransaction t : transactions) {
+            for (BaseTransaction t : transactions.values()) {
                 bw.write(String.join(",",
                         String.valueOf(t.getTxnId()),
                         t.getType(),
@@ -134,7 +142,7 @@ public class TransactionService {
                         default -> throw new InvalidTransactionException(
                                 "Unknown type on line " + lineNum + ": " + type);
                     };
-                    transactions.add(t);
+                    transactions.put(String.valueOf(t.getTxnId()), t);
                 } catch (NumberFormatException | java.time.format.DateTimeParseException e) {
                     System.err.println("Skipping bad row at line " + lineNum + ": " + e.getMessage());
                 }
@@ -162,55 +170,27 @@ public class TransactionService {
     //       requires looping through every element (O(n)). This matters at scale.
     //
     // OBSERVE: All existing functionality should still work — just faster lookups by ID.
-package com.smartbudget.service;
 
-import com.smartbudget.exception.InvalidTransactionException;
-import com.smartbudget.model.BaseTransaction;
-import java.math.BigDecimal;
-import java.time.LocalDate;
-import java.util.*;
-
-public class TransactionService {
-
-    private final Map<String, BaseTransaction> transactions = new HashMap<>();
-
-    public void addTransaction(BaseTransaction t) {
-        if (t == null) {
-            throw new IllegalArgumentException("transaction must not be null");
-        }
-        if (t.getDescription() == null || t.getDescription().isBlank()) {
-            throw new InvalidTransactionException("description must not be blank");
-        }
-        transactions.put(String.valueOf(t.getTxnId()), t);
+    public BaseTransaction findById(String id) {
+        return transactions.get(id);
     }
 
-    public BaseTransaction findById(String id) { return transactions.get(id); }
-
-    public boolean delete(String id) { return transactions.remove(id) != null; }
-
-    public List<BaseTransaction> getAll() {
-        return new ArrayList<>(transactions.values());
+    public BaseTransaction findById(int txnId) {
+        return findById(String.valueOf(txnId));
     }
 
-    public int size() { return transactions.size(); }
-
-    public List<BaseTransaction> filterByDateRange(LocalDate from, LocalDate to) {
-        List<BaseTransaction> result = new ArrayList<>();
-        for (BaseTransaction t : transactions.values()) {
-            LocalDate d = t.getTxnDate();
-            if (!d.isBefore(from) && !d.isAfter(to)) result.add(t);
-        }
-        return result;
+    public boolean delete(String id) {
+        return transactions.remove(id) != null;
     }
 
-    public BigDecimal calculateTotalByType(String type) {
-        BigDecimal total = BigDecimal.ZERO;
-        for (BaseTransaction t : transactions.values()) {
-            if (type.equals(t.getType())) total = total.add(t.getAmount());
-        }
-        return total;
+    public boolean delete(int txnId) {
+        return delete(String.valueOf(txnId));
     }
-}
+
+    public int size() {
+        return transactions.size();
+    }
+
     // -------------------------------------------------------
     // TODO TICKET-F033: Add Stream-based filtering
     // -------------------------------------------------------
@@ -229,28 +209,27 @@ public class TransactionService {
     //
     // OBSERVE: Compare the Stream version with the for-loop version (Day 3).
     //          Same result, fewer lines, more readable.
-import java.util.Comparator;
-import java.util.stream.Collectors;
 
-public List<BaseTransaction> getExpensesOver100() {
-    BigDecimal threshold = new BigDecimal("100");
-    return transactions.values().stream()
-            .filter(t -> "EXPENSE".equals(t.getType()))
-            .filter(t -> t.getAmount().compareTo(threshold) > 0)
-            .collect(Collectors.toList());
-}
+    public List<BaseTransaction> getExpensesOver100() {
+        BigDecimal threshold = new BigDecimal("100");
+        return transactions.values().stream()
+                .filter(t -> "EXPENSE".equals(t.getType()))
+                .filter(t -> t.getAmount().compareTo(threshold) > 0)
+                .collect(Collectors.toList());
+    }
 
-public List<BaseTransaction> getSortedByDate() {
-    return transactions.values().stream()
-            .sorted(Comparator.comparing(BaseTransaction::getTxnDate))
-            .collect(Collectors.toList());
-}
+    public List<BaseTransaction> getSortedByDate() {
+        return transactions.values().stream()
+                .sorted(Comparator.comparing(BaseTransaction::getTxnDate))
+                .collect(Collectors.toList());
+    }
 
-public List<BaseTransaction> getSortedByDateDesc() {
-    return transactions.values().stream()
-            .sorted(Comparator.comparing(BaseTransaction::getTxnDate).reversed())
-            .collect(Collectors.toList());
-}
+    public List<BaseTransaction> getSortedByDateDesc() {
+        return transactions.values().stream()
+                .sorted(Comparator.comparing(BaseTransaction::getTxnDate).reversed())
+                .collect(Collectors.toList());
+    }
+
     // -------------------------------------------------------
     // TODO TICKET-F034: Lambda Comparator for custom sorting
     // -------------------------------------------------------
@@ -266,11 +245,13 @@ public List<BaseTransaction> getSortedByDateDesc() {
     //       Lambdas do the same thing in one line.
     //
     // OBSERVE: Call getSortedByAmount() — the first item should have the highest amount.
-public List<BaseTransaction> getSortedByAmount() {
-    return transactions.values().stream()
-            .sorted((a, b) -> b.getAmount().compareTo(a.getAmount()))
-            .collect(Collectors.toList());
-}
+
+    public List<BaseTransaction> getSortedByAmount() {
+        return transactions.values().stream()
+                .sorted((a, b) -> b.getAmount().compareTo(a.getAmount()))
+                .collect(Collectors.toList());
+    }
+
 
     // ==========================================================
     //  DAY 6 (Sprint 5): Spring @Service with JPA Repositories
@@ -298,12 +279,22 @@ public List<BaseTransaction> getSortedByAmount() {
     private final UserRepository        userRepo;
     private final CategoryRepository    categoryRepo;
 
+    // Spring uses this constructor (only one annotated) to inject the JPA repositories.
+    @org.springframework.beans.factory.annotation.Autowired
     public TransactionService(TransactionRepository txnRepo,
                               UserRepository userRepo,
                               CategoryRepository categoryRepo) {
         this.txnRepo      = txnRepo;
         this.userRepo     = userRepo;
         this.categoryRepo = categoryRepo;
+    }
+
+    // No-arg constructor kept for the Day 3/4 in-memory usage (console app, unit tests)
+    // that predates the Day 6 JPA repositories.
+    public TransactionService() {
+        this.txnRepo      = null;
+        this.userRepo     = null;
+        this.categoryRepo = null;
     }
     // -------------------------------------------------------
     // TODO TICKET-F063: Step 2 — Implement CRUD methods
@@ -326,8 +317,10 @@ public List<BaseTransaction> getSortedByAmount() {
     //          POST a transaction with amount = -10 → should get HTTP 400.
     //          GET a non-existent ID → should get HTTP 404.
     //          These responses come from the exceptions caught by GlobalExceptionHandler.
+    // Named getAllTransactions() (not getAll()) to avoid colliding with the
+    // Day 3/4 in-memory getAll() above, which returns List<BaseTransaction>.
     @Transactional(readOnly = true)
-    public List<Transaction> getAll() {
+    public List<Transaction> getAllTransactions() {
         return txnRepo.findAll();
     }
 
@@ -393,9 +386,6 @@ public List<BaseTransaction> getSortedByAmount() {
         if (date != null) t.setTxnDate(date);
         if (description != null) t.setDescription(description);
         if (type != null) t.setType(type);
-        return service.create(t.getUser().getUserId(),
-                      t.getCategory().getCategoryId(),
-                      t.getAmount(), t.getTxnDate(),
-                      t.getDescription(), t.getType());;
+        return txnRepo.save(t);
     }
 }

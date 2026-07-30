@@ -7,6 +7,8 @@ import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.http.MediaType;
 import org.springframework.test.web.servlet.MockMvc;
 
+import static org.hamcrest.Matchers.greaterThan;
+import static org.hamcrest.Matchers.containsString;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
 
@@ -95,10 +97,33 @@ public class TransactionControllerTest {
     //          If it returns 500 → check the server logs for the actual error.
     @Test
     void getAll_returns200AndJsonArray() throws Exception {
+        // >= 25 (not an exact match): other @Test methods in this class share the same
+        // Spring context/H2 instance and may insert rows before this one runs.
         mockMvc.perform(get("/api/transactions"))
                .andExpect(status().isOk())
                .andExpect(content().contentTypeCompatibleWith(MediaType.APPLICATION_JSON))
-               .andExpect(jsonPath("$.length()").value(15));   // 15 seeded txns
+               .andExpect(jsonPath("$.length()", org.hamcrest.Matchers.greaterThanOrEqualTo(25)));
+    }
+
+    @Test
+    void createTransaction_validInput_returns201() throws Exception {
+        String body = """
+            {
+              "user":     {"userId": 1},
+              "category": {"categoryId": 1},
+              "amount":   100.00,
+              "txnDate":  "2026-05-01",
+              "description": "Integration test",
+              "type":     "INCOME"
+            }
+            """;
+
+        mockMvc.perform(post("/api/transactions")
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .content(body))
+               .andExpect(status().isCreated())
+               .andExpect(jsonPath("$.txnId").exists())
+               .andExpect(jsonPath("$.amount").value(100.00));
     }
     // -------------------------------------------------------
     // TODO TICKET-F065: Step 3 — Write testCreateTransaction_negativeAmount
@@ -119,6 +144,28 @@ public class TransactionControllerTest {
     //
     // OBSERVE: If this returns 201 instead of 400, validation isn't active.
     //          Check: Does the controller have @Valid? Does the entity have @DecimalMin?
+    @Test
+    void createTransaction_negativeAmount_returns400() throws Exception {
+        String body = """
+            {
+              "user":     {"userId": 1},
+              "category": {"categoryId": 1},
+              "amount":   -50.00,
+              "txnDate":  "2026-05-01",
+              "description": "should fail",
+              "type":     "EXPENSE"
+            }
+            """;
+
+        // @Positive on Transaction.amount rejects this before the controller body runs,
+        // so GlobalExceptionHandler's MethodArgumentNotValidException handler returns
+        // the message under fieldErrors.amount, not a top-level "message" key.
+        mockMvc.perform(post("/api/transactions")
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .content(body))
+               .andExpect(status().isBadRequest())
+               .andExpect(jsonPath("$.fieldErrors.amount", containsString("greater than zero")));
+    }
 
     // -------------------------------------------------------
     // TODO TICKET-F066: Step 4 — Write testGetTransactionsByUser
@@ -142,4 +189,12 @@ public class TransactionControllerTest {
     //          1. TransactionController has GET /api/transactions/user/{userId}
     //          2. TransactionRepository has findByUser_UserIdOrderByTxnDateDesc()
     //          3. data.sql seeds transactions for user 1
+    @Test
+    void getTransactionsByUser_returnsNonEmptyArray() throws Exception {
+        mockMvc.perform(get("/api/transactions/user/1"))
+               .andExpect(status().isOk())
+               .andExpect(content().contentType(MediaType.APPLICATION_JSON))
+               .andExpect(jsonPath("$").isArray())
+               .andExpect(jsonPath("$.length()").value(greaterThan(0)));
+    }
 }

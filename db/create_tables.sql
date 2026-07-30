@@ -6,10 +6,12 @@
 -- because foreign keys reference the parent.
 -- Order: users → categories → transactions → savings_goals
 -- ============================================================
-DROP TABLE IF EXISTS savings_goals;
-DROP TABLE IF EXISTS transactions;
-DROP TABLE IF EXISTS categories;
-DROP TABLE IF EXISTS users;
+-- CASCADE also drops the views from queries.sql (F008) that read these tables,
+-- which is what keeps this script re-runnable from a clean slate.
+DROP TABLE IF EXISTS savings_goals CASCADE;
+DROP TABLE IF EXISTS transactions CASCADE;
+DROP TABLE IF EXISTS categories CASCADE;
+DROP TABLE IF EXISTS users CASCADE;
 -- ============================================================
 -- TODO TICKET-F003: Create the "users" table
 -- ============================================================

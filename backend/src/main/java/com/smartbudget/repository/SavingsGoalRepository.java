@@ -4,6 +4,8 @@ import com.smartbudget.entity.SavingsGoal;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.stereotype.Repository;
 
+import java.util.List;
+
 // ============================================================
 // TICKET-F061 (Day 6, Sprint 5) — Savings Goal Repository
 // ============================================================
@@ -50,4 +52,5 @@ public interface SavingsGoalRepository extends JpaRepository<SavingsGoal, Long> 
     //
     // USED BY: SavingsGoalController GET /api/goals/user/{userId}
     //          SavingsGoalService.getByUserId()
+    List<SavingsGoal> findByUser_UserId(Long userId);
 }

@@ -128,17 +128,17 @@ LIMIT 5;
 --
 -- OBSERVE: For each user, the running_total should increase with each row.
 --          The last row for each user should equal their total sum.
-SELECT t.txn_id,
-       u.name        AS user_name,
-       c.name        AS category,
-       t.amount,
+
+SELECT t.user_id,
+       u.name AS user_name,
        t.txn_date,
-       t.description,
-       t.type
+       t.amount,
+       t.type,
+       SUM(t.amount) OVER (PARTITION BY t.user_id
+                           ORDER BY t.txn_date, t.txn_id) AS running_total
 FROM transactions t
-JOIN users      u ON t.user_id     = u.user_id
-JOIN categories c ON t.category_id = c.category_id
-ORDER BY t.txn_date DESC, t.txn_id;
+JOIN users u ON t.user_id = u.user_id
+ORDER BY t.user_id, t.txn_date, t.txn_id;
 
 -- ============================================================
 -- TODO TICKET-F008: Create VIEW — monthly_summary
@@ -159,12 +159,35 @@ ORDER BY t.txn_date DESC, t.txn_id;
 --
 -- OBSERVE: After creating, run: SELECT * FROM monthly_summary;
 --          You should see one row per user per month with income/expense split.
+
 CREATE OR REPLACE VIEW monthly_summary AS
-SELECT c.name   AS category,
-SUM(t.amount)   AS total_spent,
-COUNT(*)    AS txn_count
+SELECT u.user_id,
+       u.name                                 AS user_name,
+       DATE_TRUNC('month', t.txn_date)::date  AS month,
+       COALESCE(SUM(t.amount) FILTER (WHERE t.type = 'INCOME'),  0) AS total_income,
+       COALESCE(SUM(t.amount) FILTER (WHERE t.type = 'EXPENSE'), 0) AS total_expense,
+       COALESCE(SUM(t.amount) FILTER (WHERE t.type = 'INCOME'),  0)
+         - COALESCE(SUM(t.amount) FILTER (WHERE t.type = 'EXPENSE'), 0) AS net_balance
+FROM users u
+JOIN transactions t ON t.user_id = u.user_id
+GROUP BY u.user_id, u.name, DATE_TRUNC('month', t.txn_date);
+
+SELECT * FROM monthly_summary
+ORDER BY user_id, month;
+
+-- ============================================================
+-- BONUS VIEW — top_expense_categories
+-- ============================================================
+-- WHAT: The 3 expense categories users spend the most on, with a transaction count.
+-- WHY:  Feeds the "where does my money go?" chart on the dashboard.
+-- OBSERVE: Exactly 3 rows, highest total_spent first.
+
+CREATE OR REPLACE VIEW top_expense_categories AS
+SELECT c.name           AS category,
+       SUM(t.amount)    AS total_spent,
+       COUNT(*)         AS txn_count
 FROM transactions t
-JOIN categories c ON t.category_id = c.category_id
+JOIN categories  c ON t.category_id = c.category_id
 WHERE c.type = 'EXPENSE'
 GROUP BY c.name
 ORDER BY total_spent DESC

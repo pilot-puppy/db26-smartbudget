@@ -50,9 +50,6 @@
   @media (max-width: 768px) {
     .cards { grid-template-columns: 1fr; }
     main { margin-top: 1rem; }
-<<<<<<< Updated upstream
-  }
-=======
   }
 
   /* ─── Header & navigation (TICKET-F074) ────────────────── */
@@ -201,4 +198,3 @@
     transition: background .15s;
   }
   button[type="submit"]:hover { background: var(--db-blue-light); }
->>>>>>> Stashed changes
