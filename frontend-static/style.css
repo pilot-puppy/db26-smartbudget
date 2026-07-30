@@ -98,3 +98,54 @@
     nav    { width: 100%; }
     nav a  { flex: 1; text-align: center; }
   }
+
+  /* ─── Add Transaction form (F076) ─────────────────────── */
+  form {
+    max-width: 480px;
+    background: var(--card-bg);
+    padding: 1.5rem;
+    border-radius: var(--radius);
+    box-shadow: var(--shadow);
+  }
+  label {
+    display: block;
+    margin: 1rem 0 .25rem;
+    font-weight: 500;
+    font-size: .9rem;
+  }
+  label:first-of-type { margin-top: 0; }
+
+  input, select {
+    width: 100%;
+    padding: .55rem .7rem;
+    border: 1px solid #ccc;
+    border-radius: 4px;
+    font: inherit;
+    background: #fff;
+    transition: border-color .15s, outline-color .15s;
+  }
+  input:focus-visible, select:focus-visible {
+    outline: 2px solid var(--db-blue);
+    outline-offset: 2px;
+    border-color: var(--db-blue);
+  }
+
+  /* red highlight only after a submit attempt (JS adds .was-submitted in F077) */
+  form.was-submitted input:invalid,
+  form.was-submitted select:invalid {
+    border-color: var(--expense);
+    background: #fff5f5;
+  }
+
+  button[type="submit"] {
+    margin-top: 1.5rem;
+    padding: .75rem 1.5rem;
+    background: var(--db-blue);
+    color: #fff;
+    border: none;
+    border-radius: 4px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: background .15s;
+  }
+  button[type="submit"]:hover { background: var(--db-blue-light); }
