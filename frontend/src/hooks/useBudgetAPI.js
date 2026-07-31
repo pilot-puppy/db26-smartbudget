@@ -64,7 +64,28 @@ import { useState, useEffect, useCallback } from 'react'
 //          a spinner. After loading, you should see transaction data.
 //          If the backend is down, you should see an error message.
 export function useTransactionData() {
-  // TODO TICKET-F091: Implement as described above
+  const [transactions, setTransactions] = useState([])
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState(null)
+
+  const fetchData = useCallback(async () => {
+    setLoading(true)
+    setError(null)
+    try {
+      const res = await fetch('/api/transactions')
+      if (!res.ok) throw new Error('HTTP ' + res.status)
+      setTransactions(await res.json())
+    } catch (err) {
+      setError(err.message || 'Could not load transactions')
+      setTransactions([])
+    } finally {
+      setLoading(false)
+    }
+  }, [])
+
+  useEffect(() => { fetchData() }, [fetchData])
+
+  return { transactions, loading, error, refetch: fetchData }
 }
 
 // -------------------------------------------------------
