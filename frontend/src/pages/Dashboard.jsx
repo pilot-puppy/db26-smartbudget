@@ -1,5 +1,7 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useMemo } from 'react'
 import { Link } from 'react-router-dom'
+import { useTransactionData } from '../hooks/useBudgetAPI'
+import { Spinner, ErrorMessage } from '../components/Feedback'
 
 // ============================================================
 // Dashboard — the landing page of SmartBudget
@@ -20,6 +22,26 @@ import { Link } from 'react-router-dom'
 export default function Dashboard() {
   const [categories, setCategories] = useState([])
   const [status, setStatus]         = useState('loading')
+
+  // TICKET-F085 — summary cards (F091 hook supplies live transaction data)
+  const { transactions, loading: txLoading, error: txError } = useTransactionData() ?? {}
+
+  const { income, expenses, net, count } = useMemo(() => {
+    let income = 0
+    let expenses = 0
+    for (const t of transactions) {
+      if (t.type === 'INCOME')  income   += Number(t.amount)
+      if (t.type === 'EXPENSE') expenses += Number(t.amount)
+    }
+    return {
+      income,
+      expenses,
+      net: income - expenses,
+      count: transactions.length,
+    }
+  }, [transactions])
+
+  const fmt = (n) => '£' + n.toFixed(2)
 
   useEffect(() => {
     fetch('/api/categories')
@@ -79,6 +101,31 @@ export default function Dashboard() {
                  Total Income should be green, Total Expenses red, Balance primary color.
                  The numbers should match what you see in GET /api/transactions.
       */}
+
+      {txLoading && <Spinner />}
+      {txError && <ErrorMessage message={txError} />}
+      {!txLoading && !txError && (
+        <div className="stat-grid" style={{ marginBottom: '1.5rem' }}>
+          <div className="card stat-card">
+            <p className="stat-card__label">Total Income</p>
+            <p className="stat-card__value" style={{ color: 'var(--success)' }}>{fmt(income)}</p>
+          </div>
+          <div className="card stat-card">
+            <p className="stat-card__label">Total Expenses</p>
+            <p className="stat-card__value" style={{ color: 'var(--danger)' }}>{fmt(expenses)}</p>
+          </div>
+          <div className="card stat-card">
+            <p className="stat-card__label">Net Balance</p>
+            <p className="stat-card__value" style={{ color: net < 0 ? 'var(--danger)' : 'var(--primary)' }}>
+              {fmt(net)}
+            </p>
+          </div>
+          <div className="card stat-card">
+            <p className="stat-card__label">Transactions</p>
+            <p className="stat-card__value" style={{ color: 'var(--primary)' }}>{count}</p>
+          </div>
+        </div>
+      )}
 
       {/* ------------------------------------------------------- */}
       {/* TODO TICKET-F100 (Day 9): Add monthly summary chart      */}
