@@ -1,3 +1,7 @@
+import { useState } from 'react'
+import { useSavingsGoals } from '../hooks/useBudgetAPI'
+import { Spinner, ErrorMessage } from '../components/Feedback'
+
 // ============================================================
 // TICKET-F090/F103 (Day 8-9, Sprint 7-8) — Savings Goals Page
 // ============================================================
@@ -13,39 +17,8 @@
 // ============================================================
 
 export default function SavingsGoals() {
-
-  // -------------------------------------------------------
-  // TODO TICKET-F090 (Day 8): Step 1 — Fetch and display goals
-  // -------------------------------------------------------
-  // WHAT: Use the custom hook to fetch savings goals from the API
-  //       and display each as a card with a progress bar.
-  //
-  // HOW:  1. Import useSavingsGoals from '../hooks/useBudgetAPI'
-  //       2. Call it with a userId: const { goals, loading, error, refetch } = useSavingsGoals(1)
-  //          (hardcode userId=1 for now — later you'd get this from auth)
-  //       3. Import Spinner and ErrorMessage from '../components/Feedback'
-  //       4. If loading, return <Spinner />
-  //       5. If error, return <ErrorMessage message={error} />
-  //       6. Render goals in a CSS grid layout:
-  //          Use style: display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(260px, 1fr))', gap: '1.2rem'
-  //       7. For each goal, render a card with:
-  //          - Goal name (<h3>)
-  //          - Deadline date
-  //          - Current amount / Target amount (formatted as currency)
-  //          - Progress bar: calculate percentage = (currentAmount / targetAmount) * 100
-  //            Cap at 100% using Math.min(100, percentage)
-  //          - Use two nested divs for the progress bar:
-  //            Outer div: className="progress-bar-bg" (the gray background)
-  //            Inner div: className="progress-bar-fill" with style={{ width: `${pct}%` }}
-  //
-  // WHY:  CSS Grid with auto-fill and minmax creates a responsive layout that
-  //       adapts to different screen sizes — 3 cards on desktop, 1 on mobile.
-  //       Math.min(100, pct) prevents the progress bar from overflowing
-  //       if someone contributes more than the target amount.
-  //
-  // OBSERVE: The page should show goal cards from the seed data.
-  //          Each card should have a partially filled progress bar.
-  //          Resize the browser — cards should reflow to fit the width.
+  // F090: fetch goals for the demo user (hardcoded userId=1, no auth yet)
+  const { goals, loading, error, refetch } = useSavingsGoals(1)
 
   // -------------------------------------------------------
   // TODO TICKET-F103 (Day 9): Step 2 — Wire up Contribute button
@@ -76,18 +49,52 @@ export default function SavingsGoals() {
   //          The currentAmount should now show 600.
   //          Try entering 0 or a negative number — what happens?
 
+  if (loading) return <Spinner />
+  if (error) return <ErrorMessage message={error} />
+
+  const fmt = (n) => '£' + Number(n).toFixed(2)
+
   return (
     <div>
       <h1 style={{ marginBottom: '1.5rem', color: 'var(--primary)' }}>Savings Goals</h1>
 
-      <div className="card" style={{ textAlign: 'center', padding: '3rem' }}>
-        <p style={{ fontSize: '1.1rem', color: 'var(--text-muted)', marginBottom: '1rem' }}>
-          Build this page in <strong>Sprint 7 (Day 8)</strong>
-        </p>
-        <p style={{ color: 'var(--text-muted)', fontSize: '0.9rem' }}>
-          TICKET-F090: Fetch savings goals using <code>useSavingsGoals()</code> hook and display as cards with progress bars
-        </p>
-      </div>
+      {goals.length === 0 ? (
+        <div className="card" style={{ textAlign: 'center', padding: '3rem' }}>
+          <p style={{ color: 'var(--text-muted)' }}>No savings goals yet.</p>
+        </div>
+      ) : (
+        <div style={{
+          display: 'grid',
+          gridTemplateColumns: 'repeat(auto-fill, minmax(260px, 1fr))',
+          gap: '1.2rem',
+        }}>
+          {goals.map(g => {
+            const target = Number(g.targetAmount)
+            const current = Number(g.currentAmount)
+            const pct = target === 0 ? 0 : Math.min(100, Math.max(0, (current / target) * 100))
+
+            return (
+              <div key={g.goalId} className="card">
+                <h3 style={{ marginBottom: '0.25rem' }}>{g.name}</h3>
+                {g.deadline && (
+                  <p style={{ fontSize: '0.85rem', color: 'var(--text-muted)', marginBottom: '0.5rem' }}>
+                    Target date: {g.deadline}
+                  </p>
+                )}
+                <p style={{ marginBottom: '0.25rem' }}>
+                  {fmt(current)} of {fmt(target)}
+                </p>
+                <div className="progress-bar-bg">
+                  <div className="progress-bar-fill" style={{ width: `${pct}%` }} />
+                </div>
+                <p style={{ fontSize: '0.85rem', color: 'var(--text-muted)', marginTop: '0.25rem' }}>
+                  {pct.toFixed(0)}%{pct >= 100 ? ' (complete)' : ''}
+                </p>
+              </div>
+            )
+          })}
+        </div>
+      )}
     </div>
   )
 }
