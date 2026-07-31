@@ -1,4 +1,6 @@
 import { Link } from 'react-router-dom'
+import { useTransactionData } from '../hooks/useBudgetAPI'
+import { Spinner, ErrorMessage } from '../components/Feedback'
 
 // ============================================================
 // TICKET-F086/F087/F098/F102 (Day 8-9) — Transaction List Page
@@ -13,52 +15,20 @@ import { Link } from 'react-router-dom'
 // ============================================================
 
 export default function TransactionList() {
+  // F086: pull data via the F091 hook. Default to {} so the page renders
+  // (empty table) instead of crashing while that hook is still a stub.
+  const { transactions = [], loading, error, refetch } = useTransactionData() ?? {}
 
-  // -------------------------------------------------------
-  // TODO TICKET-F086 (Day 8): Step 1 — Fetch and display transactions
-  // -------------------------------------------------------
-  // WHAT: Use the custom hook to fetch transactions from the API
-  //       and display them in an HTML table.
-  //
-  // HOW:  1. Import useTransactionData from '../hooks/useBudgetAPI'
-  //       2. Call it at the top: const { transactions, loading, error, refetch } = useTransactionData()
-  //       3. Import Spinner and ErrorMessage from '../components/Feedback'
-  //       4. If loading is true, return <Spinner />
-  //       5. If error exists, return <ErrorMessage message={error} />
-  //       6. Render a <table> with columns: ID, Date, Category, Description, Amount, Type, Actions
-  //       7. Use transactions.map() to render one <tr> per transaction
-  //       8. Access nested fields: t.category?.name (the ?. prevents crashes if category is null)
-  //       9. Color the amount: green for INCOME, red for EXPENSE
-  //          Use inline style: style={{ color: t.type === 'INCOME' ? 'var(--success)' : 'var(--danger)' }}
-  //      10. Add a type badge: <span className={`badge badge--${t.type.toLowerCase()}`}>{t.type}</span>
-  //
-  // WHY:  This is a core React pattern: fetch data → check loading state → render.
-  //       The ?. (optional chaining) prevents "Cannot read property of undefined" errors.
-  //       Conditional rendering ({loading && <Spinner />}) is how React handles UI states.
-  //
-  // OBSERVE: The table should show all transactions from the database.
-  //          Amounts should be green (income) or red (expense).
-  //          While the API loads, a spinner should appear briefly.
+  // F087: confirm, DELETE, then refetch so the row disappears without a reload.
+  async function handleDelete(id) {
+    if (!window.confirm('Delete this transaction?')) return
+    const res = await fetch(`/api/transactions/${id}`, { method: 'DELETE' })
+    if (res.ok) refetch?.()
+    else alert('Could not delete transaction.')
+  }
 
-  // -------------------------------------------------------
-  // TODO TICKET-F087 (Day 8): Step 2 — Add delete functionality
-  // -------------------------------------------------------
-  // WHAT: Each table row gets a "Delete" button that removes the transaction.
-  //
-  // HOW:  1. Create a handleDelete(id) async function
-  //       2. Show a confirmation dialog: if (!window.confirm('Delete this transaction?')) return
-  //       3. Call fetch(`/api/transactions/${id}`, { method: 'DELETE' })
-  //       4. If the response is OK, call refetch() to refresh the table
-  //       5. If it fails, show an error (alert or toast)
-  //       6. Add a "Delete" button in the Actions column of each row
-  //          onClick={() => handleDelete(t.txnId)}
-  //
-  // WHY:  Delete requires a confirmation to prevent accidental data loss.
-  //       After deleting, refetch() re-calls the API and React re-renders
-  //       the table without the deleted row. No page reload needed.
-  //
-  // OBSERVE: Click Delete on a transaction → confirm → the row should disappear.
-  //          Check the API: GET /api/transactions — the deleted one should be gone.
+  if (loading) return <Spinner />
+  if (error) return <ErrorMessage message={error} />
 
   // -------------------------------------------------------
   // TODO TICKET-F098 (Day 9): Step 3 — Add filter bar
@@ -110,13 +80,39 @@ export default function TransactionList() {
         <Link to="/add" className="btn btn-primary">+ Add Transaction</Link>
       </div>
 
-      <div className="card" style={{ textAlign: 'center', padding: '3rem' }}>
-        <p style={{ fontSize: '1.1rem', color: 'var(--text-muted)', marginBottom: '1rem' }}>
-          Build this page in <strong>Sprint 7 (Day 8)</strong>
-        </p>
-        <p style={{ color: 'var(--text-muted)', fontSize: '0.9rem' }}>
-          TICKET-F086: Fetch transactions using <code>useTransactionData()</code> hook and display in a table
-        </p>
+      <div className="card">
+        <table>
+          <thead>
+            <tr>
+              <th>ID</th>
+              <th>Date</th>
+              <th>Category</th>
+              <th>Description</th>
+              <th>Amount</th>
+              <th>Type</th>
+              <th>Actions</th>
+            </tr>
+          </thead>
+          <tbody>
+            {transactions.length === 0 ? (
+              <tr><td colSpan={7} style={{ textAlign: 'center', color: 'var(--text-muted)' }}>No transactions yet.</td></tr>
+            ) : transactions.map(t => (
+              <tr key={t.txnId}>
+                <td>{t.txnId}</td>
+                <td>{t.txnDate}</td>
+                <td>{t.category?.name}</td>
+                <td>{t.description}</td>
+                <td style={{ color: t.type === 'INCOME' ? 'var(--success)' : 'var(--danger)' }}>
+                  £{Number(t.amount).toFixed(2)}
+                </td>
+                <td><span className={`badge badge--${t.type.toLowerCase()}`}>{t.type}</span></td>
+                <td>
+                  <button className="btn btn-danger" onClick={() => handleDelete(t.txnId)}>Delete</button>
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
       </div>
     </div>
   )
