@@ -211,3 +211,28 @@
     transition: background .15s;
   }
   button[type="submit"]:hover { background: var(--db-blue-light); }
+
+  /* ─── Savings goal cards (TICKET-F072) ─────────────────── */
+  .goal-card {
+    background: var(--card-bg);
+    padding: 1rem;
+    margin-bottom: 1rem;
+    border-radius: var(--radius);
+    box-shadow: var(--shadow);
+  }
+  .progress-bar {
+    height: 12px;
+    background: #e0e0e0;
+    border-radius: 6px;
+    overflow: hidden;
+  }
+  .progress-fill {
+    height: 100%;
+    background: var(--db-blue);
+    transition: width .3s;
+  }
+  .progress-text {
+    margin: .5rem 0 0;
+    font-size: .9rem;
+    color: var(--muted);
+  }
