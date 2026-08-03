@@ -1,4 +1,9 @@
+import { useState, useMemo } from 'react'
 import { Link } from 'react-router-dom'
+import { useTransactionData } from '../hooks/useBudgetAPI'
+import { Spinner, ErrorMessage, Toast } from '../components/Feedback'
+import EmptyState from '../components/EmptyState'
+import { formatCurrency } from '../utils/format'
 
 // ============================================================
 // TICKET-F086/F087/F098/F102 (Day 8-9) — Transaction List Page
@@ -13,111 +18,239 @@ import { Link } from 'react-router-dom'
 // ============================================================
 
 export default function TransactionList() {
+  // F086: pull data via the F091 hook. Default to {} so the page renders
+  // (empty table) instead of crashing while that hook is still a stub.
+  const { transactions = [], loading, error, refetch } = useTransactionData() ?? {}
 
-  // -------------------------------------------------------
-  // TODO TICKET-F086 (Day 8): Step 1 — Fetch and display transactions
-  // -------------------------------------------------------
-  // WHAT: Use the custom hook to fetch transactions from the API
-  //       and display them in an HTML table.
-  //
-  // HOW:  1. Import useTransactionData from '../hooks/useBudgetAPI'
-  //       2. Call it at the top: const { transactions, loading, error, refetch } = useTransactionData()
-  //       3. Import Spinner and ErrorMessage from '../components/Feedback'
-  //       4. If loading is true, return <Spinner />
-  //       5. If error exists, return <ErrorMessage message={error} />
-  //       6. Render a <table> with columns: ID, Date, Category, Description, Amount, Type, Actions
-  //       7. Use transactions.map() to render one <tr> per transaction
-  //       8. Access nested fields: t.category?.name (the ?. prevents crashes if category is null)
-  //       9. Color the amount: green for INCOME, red for EXPENSE
-  //          Use inline style: style={{ color: t.type === 'INCOME' ? 'var(--success)' : 'var(--danger)' }}
-  //      10. Add a type badge: <span className={`badge badge--${t.type.toLowerCase()}`}>{t.type}</span>
-  //
-  // WHY:  This is a core React pattern: fetch data → check loading state → render.
-  //       The ?. (optional chaining) prevents "Cannot read property of undefined" errors.
-  //       Conditional rendering ({loading && <Spinner />}) is how React handles UI states.
-  //
-  // OBSERVE: The table should show all transactions from the database.
-  //          Amounts should be green (income) or red (expense).
-  //          While the API loads, a spinner should appear briefly.
+  // TICKET-F095 — filter by transaction type (client-side, no re-fetch)
+  const [typeFilter, setTypeFilter] = useState('ALL')
+  // TICKET-F096 — filter by date range (ISO strings compare with >= / <=)
+  const [filterFrom, setFilterFrom] = useState('')
+  const [filterTo, setFilterTo]     = useState('')
+  // TICKET-F097 — case-insensitive search on description
+  const [searchTerm, setSearchTerm] = useState('')
 
-  // -------------------------------------------------------
-  // TODO TICKET-F087 (Day 8): Step 2 — Add delete functionality
-  // -------------------------------------------------------
-  // WHAT: Each table row gets a "Delete" button that removes the transaction.
-  //
-  // HOW:  1. Create a handleDelete(id) async function
-  //       2. Show a confirmation dialog: if (!window.confirm('Delete this transaction?')) return
-  //       3. Call fetch(`/api/transactions/${id}`, { method: 'DELETE' })
-  //       4. If the response is OK, call refetch() to refresh the table
-  //       5. If it fails, show an error (alert or toast)
-  //       6. Add a "Delete" button in the Actions column of each row
-  //          onClick={() => handleDelete(t.txnId)}
-  //
-  // WHY:  Delete requires a confirmation to prevent accidental data loss.
-  //       After deleting, refetch() re-calls the API and React re-renders
-  //       the table without the deleted row. No page reload needed.
-  //
-  // OBSERVE: Click Delete on a transaction → confirm → the row should disappear.
-  //          Check the API: GET /api/transactions — the deleted one should be gone.
+  const filteredTransactions = useMemo(() => transactions
+    .filter(t => typeFilter === 'ALL' || t.type === typeFilter)
+    .filter(t => !filterFrom || t.txnDate >= filterFrom)
+    .filter(t => !filterTo || t.txnDate <= filterTo)
+    .filter(t => !searchTerm ||
+      t.description?.toLowerCase().includes(searchTerm.toLowerCase())),
+  [transactions, typeFilter, filterFrom, filterTo, searchTerm])
 
-  // -------------------------------------------------------
-  // TODO TICKET-F098 (Day 9): Step 3 — Add filter bar
-  // -------------------------------------------------------
-  // WHAT: A filter section above the table with:
-  //       - Category dropdown (filter by category)
-  //       - Date range inputs (from date, to date)
-  //       - Search input (filter by description keyword)
-  //
-  // HOW:  1. Add state variables for each filter: filterCategory, filterFrom, filterTo, searchTerm
-  //       2. Use useMemo to create a "filteredTransactions" array that applies all filters
-  //       3. Filter logic (inside useMemo):
-  //          - If filterCategory is set, keep only transactions where category.name matches
-  //          - If filterFrom is set, keep only transactions where txnDate >= filterFrom
-  //          - If searchTerm is set, keep only transactions where description includes the term
-  //       4. Render the table using filteredTransactions instead of transactions
-  //       5. Render filter inputs above the table, each with onChange updating state
-  //
-  // WHY:  Filtering happens client-side (in the browser) because we already have all data.
-  //       useMemo caches the filtered result so it only recalculates when filters or data change.
-  //       This is faster than calling the API with filter parameters for every keystroke.
-  //
-  // OBSERVE: Type in the search box — the table should update instantly (no API calls).
-  //          Select a category — only matching transactions should appear.
+  // F104: toast feedback (green success / red error) for the delete action
+  const [toast, setToast] = useState(null)
 
-  // -------------------------------------------------------
-  // TODO TICKET-F102 (Day 9): Step 4 — Add edit functionality
-  // -------------------------------------------------------
-  // WHAT: Each table row gets an "Edit" button that allows inline editing.
-  //
-  // HOW:  1. Add state for the currently editing transaction: editingId, editForm
-  //       2. When Edit is clicked, set editingId to that row's ID
-  //          and populate editForm with the current values
-  //       3. In the table, if row ID === editingId, show input fields instead of text
-  //       4. Add Save/Cancel buttons in the editing row
-  //       5. On Save, call PUT /api/transactions/{id} with the updated data
-  //       6. On success, call refetch() and clear editingId
-  //
-  // WHY:  Inline editing is a better UX than navigating to a separate edit page.
-  //       The user sees the change immediately in context.
-  //
-  // OBSERVE: Click Edit → fields should become editable → change the amount →
-  //          click Save → the row should update with the new value.
+  // TICKET-F102 — inline edit transaction state
+  const [editingId, setEditingId] = useState(null)
+  const [editForm, setEditForm]   = useState({ amount: '', description: '', type: 'EXPENSE', txnDate: '' })
+
+  function clearFilters() {
+    setTypeFilter('ALL'); setFilterFrom(''); setFilterTo(''); setSearchTerm('')
+  }
+
+  function handleStartEdit(t) {
+    setEditingId(t.txnId)
+    setEditForm({
+      amount: String(t.amount),
+      description: t.description ?? '',
+      type: t.type,
+      txnDate: t.txnDate,
+    })
+  }
+
+  function handleCancelEdit() {
+    setEditingId(null)
+  }
+
+  async function handleSaveEdit(t) {
+    try {
+      const res = await fetch(`/api/transactions/${t.txnId}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          amount: parseFloat(editForm.amount),
+          txnDate: editForm.txnDate || t.txnDate,
+          description: editForm.description,
+          type: editForm.type,
+        }),
+      })
+      if (!res.ok) {
+        const body = await res.json().catch(() => null)
+        throw new Error(body?.message || `HTTP ${res.status}`)
+      }
+      setEditingId(null)
+      refetch?.()
+      setToast({ type: 'success', message: 'Transaction updated successfully' })
+    } catch (err) {
+      setToast({ type: 'error', message: err.message || 'Could not update transaction' })
+    }
+  }
+
+  // F087: confirm, DELETE, then refetch so the row disappears without a reload.
+  async function handleDelete(id) {
+    if (!window.confirm('Delete this transaction?')) return
+    const res = await fetch(`/api/transactions/${id}`, { method: 'DELETE' })
+    if (res.ok) { refetch?.(); setToast({ type: 'success', message: 'Transaction deleted' }) }
+    else setToast({ type: 'error', message: 'Could not delete transaction' })
+  }
+
+  if (loading) return <Spinner />
+  if (error) return <ErrorMessage message={error} />
+
+  const noData = transactions.length === 0
+  const noMatches = !noData && filteredTransactions.length === 0
 
   return (
     <div>
+      {toast && <Toast type={toast.type} message={toast.message} onClose={() => setToast(null)} />}
+
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem' }}>
         <h1 style={{ color: 'var(--primary)' }}>Transactions</h1>
         <Link to="/add" className="btn btn-primary">+ Add Transaction</Link>
       </div>
 
-      <div className="card" style={{ textAlign: 'center', padding: '3rem' }}>
-        <p style={{ fontSize: '1.1rem', color: 'var(--text-muted)', marginBottom: '1rem' }}>
-          Build this page in <strong>Sprint 7 (Day 8)</strong>
-        </p>
-        <p style={{ color: 'var(--text-muted)', fontSize: '0.9rem' }}>
-          TICKET-F086: Fetch transactions using <code>useTransactionData()</code> hook and display in a table
-        </p>
-      </div>
+      {/* F105: no data at all → onboarding empty state instead of an empty table */}
+      {noData ? (
+        <EmptyState
+          title="No transactions yet"
+          body="Start tracking your money — add your first transaction."
+          ctaLabel="+ Add Transaction"
+          ctaTo="/add" />
+      ) : (
+        <>
+          {/* TICKET-F095 / F096 / F097 — filter bar (F098 category filter still TODO below) */}
+          <div className="card" style={{
+            display: 'flex', flexWrap: 'wrap', gap: '1rem', alignItems: 'flex-end',
+            marginBottom: '1rem', padding: '1rem',
+          }}>
+            <div className="form-group" style={{ marginBottom: 0, minWidth: '140px' }}>
+              <label htmlFor="type-filter">Type</label>
+              <select id="type-filter" value={typeFilter}
+                      onChange={e => setTypeFilter(e.target.value)}>
+                <option value="ALL">All</option>
+                <option value="INCOME">Income</option>
+                <option value="EXPENSE">Expense</option>
+              </select>
+            </div>
+
+            <div className="form-group" style={{ marginBottom: 0 }}>
+              <label htmlFor="filter-from">From</label>
+              <input id="filter-from" type="date" value={filterFrom}
+                     onChange={e => setFilterFrom(e.target.value)} />
+            </div>
+
+            <div className="form-group" style={{ marginBottom: 0 }}>
+              <label htmlFor="filter-to">To</label>
+              <input id="filter-to" type="date" value={filterTo}
+                     onChange={e => setFilterTo(e.target.value)} />
+            </div>
+
+            <div className="form-group" style={{ marginBottom: 0, flex: '1 1 200px' }}>
+              <label htmlFor="search-term">Search</label>
+              <input id="search-term" type="search" placeholder="Search transactions..."
+                     value={searchTerm} onChange={e => setSearchTerm(e.target.value)} />
+            </div>
+
+            <button type="button" className="btn btn-secondary" onClick={clearFilters}>
+              Clear filters
+            </button>
+
+            <span style={{ alignSelf: 'center', color: 'var(--text-muted)', fontSize: '0.9rem' }}>
+              Showing {filteredTransactions.length} of {transactions.length}
+            </span>
+          </div>
+
+          {/* F105: filters matched nothing → styled empty state with a clear-filters action */}
+          {noMatches ? (
+            <EmptyState
+              title="No matches"
+              body="No transactions match your current filters."
+              ctaLabel="Clear filters"
+              onAction={clearFilters} />
+          ) : (
+            <div className="card">
+              <table>
+                <thead>
+                  <tr>
+                    <th>ID</th>
+                    <th>Date</th>
+                    <th>Category</th>
+                    <th>Description</th>
+                    <th>Amount</th>
+                    <th>Type</th>
+                    <th>Actions</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {filteredTransactions.map(t => (
+                    editingId === t.txnId ? (
+                      <tr key={t.txnId}>
+                        <td>{t.txnId}</td>
+                        <td>
+                          <input type="date" value={editForm.txnDate}
+                                 onChange={e => setEditForm(v => ({ ...v, txnDate: e.target.value }))}
+                                 style={{ padding: '0.3rem 0.5rem', border: '1px solid var(--border)', borderRadius: '4px' }} />
+                        </td>
+                        <td>{t.category?.name}</td>
+                        <td>
+                          <input type="text" value={editForm.description}
+                                 onChange={e => setEditForm(v => ({ ...v, description: e.target.value }))}
+                                 style={{ padding: '0.3rem 0.5rem', border: '1px solid var(--border)', borderRadius: '4px', width: '100%' }} />
+                        </td>
+                        <td>
+                          <input type="number" step="0.01" value={editForm.amount}
+                                 onChange={e => setEditForm(v => ({ ...v, amount: e.target.value }))}
+                                 style={{ padding: '0.3rem 0.5rem', border: '1px solid var(--border)', borderRadius: '4px', width: '90px' }} />
+                        </td>
+                        <td>
+                          <select value={editForm.type}
+                                  onChange={e => setEditForm(v => ({ ...v, type: e.target.value }))}
+                                  style={{ padding: '0.3rem 0.5rem', border: '1px solid var(--border)', borderRadius: '4px' }}>
+                            <option value="INCOME">INCOME</option>
+                            <option value="EXPENSE">EXPENSE</option>
+                          </select>
+                        </td>
+                        <td style={{ whiteSpace: 'nowrap' }}>
+                          <button className="btn btn-primary btn-sm"
+                                  style={{ marginRight: '0.4rem', padding: '0.3rem 0.7rem' }}
+                                  onClick={() => handleSaveEdit(t)}>Save</button>
+                          <button className="btn btn-secondary btn-sm"
+                                  style={{ padding: '0.3rem 0.7rem' }}
+                                  onClick={handleCancelEdit}>Cancel</button>
+                        </td>
+                      </tr>
+                    ) : (
+                      <tr key={t.txnId}>
+                        <td>{t.txnId}</td>
+                        <td>{t.txnDate}</td>
+                        <td>{t.category?.name}</td>
+                        <td>{t.description}</td>
+                        <td style={{ color: t.type === 'INCOME' ? 'var(--success)' : 'var(--danger)' }}>
+                          {formatCurrency(t.amount)}
+                        </td>
+                        <td><span className={`badge badge--${t.type.toLowerCase()}`}>{t.type}</span></td>
+                        <td style={{ whiteSpace: 'nowrap' }}>
+                          <button className="btn btn-secondary btn-sm"
+                                  style={{ marginRight: '0.4rem', padding: '0.3rem 0.7rem' }}
+                                  aria-label={`Edit transaction ${t.txnId}`}
+                                  title="Edit transaction"
+                                  onClick={() => handleStartEdit(t)}>Edit</button>
+                          <button className="btn btn-danger btn-sm"
+                                  style={{ padding: '0.3rem 0.7rem' }}
+                                  aria-label={`Delete transaction ${t.txnId}`}
+                                  title="Delete transaction"
+                                  onClick={() => handleDelete(t.txnId)}>Delete</button>
+                        </td>
+                      </tr>
+                    )
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </>
+      )}
     </div>
   )
 }
