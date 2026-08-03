@@ -64,7 +64,28 @@ import { useState, useEffect, useCallback } from 'react'
 //          a spinner. After loading, you should see transaction data.
 //          If the backend is down, you should see an error message.
 export function useTransactionData() {
-  // TODO TICKET-F091: Implement as described above
+  const [transactions, setTransactions] = useState([])
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState(null)
+
+  const fetchData = useCallback(async () => {
+    setLoading(true)
+    setError(null)
+    try {
+      const res = await fetch('/api/transactions')
+      if (!res.ok) throw new Error('HTTP ' + res.status)
+      setTransactions(await res.json())
+    } catch (err) {
+      setError(err.message || 'Could not load transactions')
+      setTransactions([])
+    } finally {
+      setLoading(false)
+    }
+  }, [])
+
+  useEffect(() => { fetchData() }, [fetchData])
+
+  return { transactions, loading, error, refetch: fetchData }
 }
 
 // -------------------------------------------------------
@@ -86,7 +107,28 @@ export function useTransactionData() {
 // OBSERVE: Import in SavingsGoals.jsx with userId=1.
 //          Should show the seed goals for user 1 from the database.
 export function useSavingsGoals(userId) {
-  // TODO TICKET-F091: Implement as described above
+  const [goals, setGoals] = useState([])
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState(null)
+
+  const fetchData = useCallback(async () => {
+    setLoading(true)
+    setError(null)
+    try {
+      const res = await fetch(`/api/goals/user/${userId}`)
+      if (!res.ok) throw new Error('HTTP ' + res.status)
+      setGoals(await res.json())
+    } catch (err) {
+      setError(err.message || 'Could not load savings goals')
+      setGoals([])
+    } finally {
+      setLoading(false)
+    }
+  }, [userId])
+
+  useEffect(() => { fetchData() }, [fetchData])
+
+  return { goals, loading, error, refetch: fetchData }
 }
 
 // -------------------------------------------------------
@@ -108,5 +150,14 @@ export function useSavingsGoals(userId) {
 // OBSERVE: Import in AddTransactionForm.jsx.
 //          The category dropdown should populate with Salary, Groceries, Rent, etc.
 export function useCategories() {
-  // TODO TICKET-F091: Implement as described above
+  const [categories, setCategories] = useState([])
+
+  useEffect(() => {
+    fetch('/api/categories')
+      .then(res => res.json())
+      .then(setCategories)
+      .catch(() => setCategories([]))
+  }, [])
+
+  return categories
 }
