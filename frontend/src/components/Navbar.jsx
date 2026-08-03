@@ -1,7 +1,12 @@
 import { NavLink } from 'react-router-dom'
+import { useTransactionData } from '../hooks/useBudgetAPI'
 
 /** PROVIDED – working navigation bar with active link highlighting */
 export default function Navbar() {
+  // TICKET-F099 — badge showing the live transaction count next to "Transactions"
+  const { transactions } = useTransactionData() ?? {}
+  const txnCount = transactions?.length ?? 0
+
   return (
     <header style={{
       background: 'var(--primary)', color: '#fff',
@@ -22,6 +27,7 @@ export default function Navbar() {
             background: isActive ? 'rgba(255,255,255,0.18)' : 'transparent'
           })}>
             {label}
+            {label === 'Transactions' && <span className="badge badge--count">{txnCount}</span>}
           </NavLink>
         ))}
       </nav>

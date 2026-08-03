@@ -77,6 +77,7 @@ tr:hover td { background: #EAF0FB; }
 .badge { display: inline-block; padding: 0.2rem 0.6rem; border-radius: 99px; font-size: 0.75rem; font-weight: 700; }
 .badge--income  { background: #D5F5E3; color: var(--success); }
 .badge--expense { background: #FADBD8; color: var(--danger); }
+.badge--count   { background: var(--gold); color: #000; margin-left: 0.4rem; vertical-align: middle; }
 
 /* Responsive */
 @media (max-width: 768px) {

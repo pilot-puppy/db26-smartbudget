@@ -2,6 +2,7 @@ import { useState, useEffect, useMemo } from 'react'
 import { Link } from 'react-router-dom'
 import { useTransactionData } from '../hooks/useBudgetAPI'
 import { Spinner, ErrorMessage } from '../components/Feedback'
+import MonthlySummaryChart from '../components/MonthlySummaryChart'
 
 // ============================================================
 // Dashboard — the landing page of SmartBudget
@@ -143,6 +144,13 @@ export default function Dashboard() {
 
         OBSERVE: A bar chart should appear with green (income) and red (expense) bars.
       */}
+
+      {!txLoading && !txError && (
+        <div className="card" style={{ marginBottom: '1.5rem' }}>
+          <h3 style={{ marginBottom: '1rem', color: 'var(--primary)' }}>Monthly Income vs Expenses</h3>
+          <MonthlySummaryChart transactions={transactions} />
+        </div>
+      )}
 
       <div style={{ display: 'flex', gap: '1rem', flexWrap: 'wrap' }}>
         <Link to="/add"          className="btn btn-primary">+ Add Transaction</Link>
