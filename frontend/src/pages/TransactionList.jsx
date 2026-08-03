@@ -29,6 +29,9 @@ export default function TransactionList() {
   const [filterTo, setFilterTo] = useState('')
   // TICKET-F097 — case-insensitive search on description
   const [searchTerm, setSearchTerm] = useState('')
+  const [editingId, setEditingId] = useState(null)
+  const [editValues, setEditValues] = useState({})
+  const [savingEdit, setSavingEdit] = useState(false)
 
   const filteredTransactions = useMemo(() => transactions
     .filter(t => typeFilter === 'ALL' || t.type === typeFilter)
@@ -51,6 +54,49 @@ export default function TransactionList() {
     const res = await fetch(`/api/transactions/${id}`, { method: 'DELETE' })
     if (res.ok) { refetch?.(); setToast({ type: 'success', message: 'Transaction deleted' }) }
     else setToast({ type: 'error', message: 'Could not delete transaction' })
+  }
+
+  function startEdit(transaction) {
+    setEditingId(transaction.txnId)
+    setEditValues({
+      amount: String(transaction.amount),
+      description: transaction.description ?? '',
+      type: transaction.type,
+    })
+  }
+
+  async function saveEdit(transaction) {
+    const amount = Number(editValues.amount)
+    if (!Number.isFinite(amount) || amount <= 0) {
+      setToast({ type: 'error', message: 'Enter a positive amount' })
+      return
+    }
+
+    setSavingEdit(true)
+    try {
+      const res = await fetch(`/api/transactions/${transaction.txnId}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          amount,
+          txnDate: transaction.txnDate,
+          description: editValues.description,
+          type: editValues.type,
+        }),
+      })
+      if (!res.ok) {
+        const body = await res.json().catch(() => null)
+        throw new Error(body?.message || `HTTP ${res.status}`)
+      }
+      setEditingId(null)
+      setEditValues({})
+      await refetch?.()
+      setToast({ type: 'success', message: 'Transaction updated' })
+    } catch (err) {
+      setToast({ type: 'error', message: err.message || 'Could not update transaction' })
+    } finally {
+      setSavingEdit(false)
+    }
   }
 
   if (loading) return <Spinner />
@@ -184,7 +230,41 @@ export default function TransactionList() {
                   </tr>
                 </thead>
                 <tbody>
-                  {filteredTransactions.map(t => (
+                  {filteredTransactions.map(t => editingId === t.txnId ? (
+                    <tr key={t.txnId}>
+                      <td>{t.txnId}</td>
+                      <td>{t.txnDate}</td>
+                      <td>{t.category?.name}</td>
+                      <td>
+                        <input value={editValues.description}
+                               aria-label={`Description for transaction ${t.txnId}`}
+                               onChange={e => setEditValues(v => ({ ...v, description: e.target.value }))} />
+                      </td>
+                      <td>
+                        <input type="number" step="0.01" min="0.01" value={editValues.amount}
+                               aria-label={`Amount for transaction ${t.txnId}`}
+                               onChange={e => setEditValues(v => ({ ...v, amount: e.target.value }))} />
+                      </td>
+                      <td>
+                        <select value={editValues.type}
+                                aria-label={`Type for transaction ${t.txnId}`}
+                                onChange={e => setEditValues(v => ({ ...v, type: e.target.value }))}>
+                          <option value="INCOME">INCOME</option>
+                          <option value="EXPENSE">EXPENSE</option>
+                        </select>
+                      </td>
+                      <td style={{ display: 'flex', gap: '0.5rem' }}>
+                        <button className="btn btn-success" disabled={savingEdit}
+                                aria-label={`Save transaction ${t.txnId}`}
+                                title="Save transaction"
+                                onClick={() => saveEdit(t)}>{savingEdit ? 'Saving...' : 'Save'}</button>
+                        <button className="btn btn-secondary" disabled={savingEdit}
+                                aria-label={`Cancel editing transaction ${t.txnId}`}
+                                title="Cancel editing"
+                                onClick={() => { setEditingId(null); setEditValues({}) }}>Cancel</button>
+                      </td>
+                    </tr>
+                  ) : (
                     <tr key={t.txnId}>
                       <td>{t.txnId}</td>
                       <td>{t.txnDate}</td>
@@ -194,7 +274,11 @@ export default function TransactionList() {
                         {formatCurrency(t.amount)}
                       </td>
                       <td><span className={`badge badge--${t.type.toLowerCase()}`}>{t.type}</span></td>
-                      <td>
+                      <td style={{ display: 'flex', gap: '0.5rem' }}>
+                        <button className="btn btn-secondary"
+                                aria-label={`Edit transaction ${t.txnId}`}
+                                title="Edit transaction"
+                                onClick={() => startEdit(t)}>Edit</button>
                         <button className="btn btn-danger"
                                 aria-label={`Delete transaction ${t.txnId}`}
                                 title="Delete transaction"

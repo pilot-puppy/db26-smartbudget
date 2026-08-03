@@ -12,6 +12,7 @@ import com.smartbudget.entity.User;
 import com.smartbudget.repository.CategoryRepository;
 import com.smartbudget.repository.TransactionRepository;
 import com.smartbudget.repository.UserRepository;
+import com.smartbudget.service.TransactionService;
 import jakarta.validation.Valid;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -28,13 +29,16 @@ public class TransactionController {
     private final TransactionRepository txnRepo;
     private final UserRepository userRepo;
     private final CategoryRepository categoryRepo;
+    private final TransactionService service;
 
     public TransactionController(TransactionRepository txnRepo,
                                  UserRepository userRepo,
-                                 CategoryRepository categoryRepo) {
+                                 CategoryRepository categoryRepo,
+                                 TransactionService service) {
         this.txnRepo = txnRepo;
         this.userRepo = userRepo;
         this.categoryRepo = categoryRepo;
+        this.service = service;
     }
 
     // F056 — GET /api/transactions
@@ -73,5 +77,12 @@ public class TransactionController {
         }
         txnRepo.deleteById(id);
         return ResponseEntity.noContent().build();
+    }
+
+    @PutMapping("/{id}")
+    public Transaction update(@PathVariable Long id,
+                              @RequestBody Transaction body) {
+        return service.update(id, body.getAmount(), body.getTxnDate(),
+                body.getDescription(), body.getType());
     }
 }

@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { useSavingsGoals } from '../hooks/useBudgetAPI'
-import { Spinner, ErrorMessage } from '../components/Feedback'
+import { Spinner, ErrorMessage, Toast } from '../components/Feedback'
 import EmptyState from '../components/EmptyState'
 import { formatCurrency } from '../utils/format'
 
@@ -21,6 +21,56 @@ import { formatCurrency } from '../utils/format'
 export default function SavingsGoals() {
   // F090: fetch goals for the demo user (hardcoded userId=1, no auth yet)
   const { goals, loading, error, refetch } = useSavingsGoals(1)
+  const [contributingId, setContributingId] = useState(null)
+  const [contributionAmount, setContributionAmount] = useState('')
+  const [contributionError, setContributionError] = useState(null)
+  const [contributing, setContributing] = useState(false)
+  const [toast, setToast] = useState(null)
+
+  function startContributing(id) {
+    setContributingId(id)
+    setContributionAmount('')
+    setContributionError(null)
+  }
+
+  function cancelContribution() {
+    setContributingId(null)
+    setContributionAmount('')
+    setContributionError(null)
+  }
+
+  async function submitContribution(event, id) {
+    event.preventDefault()
+    const amount = Number(contributionAmount)
+    if (!Number.isFinite(amount) || amount <= 0) {
+      setContributionError('Enter a positive amount')
+      setToast({ type: 'error', message: 'Enter a positive amount' })
+      return
+    }
+
+    setContributing(true)
+    setContributionError(null)
+    try {
+      const res = await fetch(`/api/goals/${id}/contribute`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ amount }),
+      })
+      if (!res.ok) {
+        const body = await res.json().catch(() => null)
+        throw new Error(body?.message || `HTTP ${res.status}`)
+      }
+      cancelContribution()
+      await refetch?.()
+      setToast({ type: 'success', message: 'Contribution added' })
+    } catch (err) {
+      const message = err.message || 'Could not add contribution'
+      setContributionError(message)
+      setToast({ type: 'error', message })
+    } finally {
+      setContributing(false)
+    }
+  }
 
   // -------------------------------------------------------
   // TODO TICKET-F103 (Day 9): Step 2 — Wire up Contribute button
@@ -56,6 +106,8 @@ export default function SavingsGoals() {
 
   return (
     <div>
+      {toast && <Toast type={toast.type} message={toast.message} onClose={() => setToast(null)} />}
+
       <h1 style={{ marginBottom: '1.5rem', color: 'var(--primary)' }}>Savings Goals</h1>
 
       {goals.length === 0 ? (
@@ -88,6 +140,45 @@ export default function SavingsGoals() {
                 <p style={{ fontSize: '0.85rem', color: 'var(--text-muted)', marginTop: '0.25rem' }}>
                   {pct.toFixed(0)}%{pct >= 100 ? ' (complete)' : ''}
                 </p>
+                {contributingId === g.goalId ? (
+                  <form onSubmit={event => submitContribution(event, g.goalId)}
+                        style={{ marginTop: '1rem' }}>
+                    <div className="form-group">
+                      <label htmlFor={`contribution-${g.goalId}`}>Contribution amount</label>
+                      <input id={`contribution-${g.goalId}`} type="number" step="0.01" min="0.01"
+                             aria-label={`Contribution amount for ${g.name}`}
+                             value={contributionAmount}
+                             onChange={event => setContributionAmount(event.target.value)}
+                             disabled={contributing} />
+                    </div>
+                    <div style={{ display: 'flex', gap: '0.5rem' }}>
+                      <button type="submit" className="btn btn-success"
+                              aria-label={`Submit contribution for ${g.name}`}
+                              title="Submit contribution"
+                              disabled={contributing || !contributionAmount}>
+                        {contributing ? 'Submitting...' : 'Submit'}
+                      </button>
+                      <button type="button" className="btn btn-secondary"
+                              aria-label={`Cancel contribution for ${g.name}`}
+                              title="Cancel contribution"
+                              disabled={contributing} onClick={cancelContribution}>
+                        Cancel
+                      </button>
+                    </div>
+                    {contributionError && (
+                      <p role="alert" style={{ color: 'var(--danger)', marginTop: '0.5rem' }}>
+                        {contributionError}
+                      </p>
+                    )}
+                  </form>
+                ) : (
+                  <button type="button" className="btn btn-primary" style={{ marginTop: '1rem' }}
+                          aria-label={`Contribute to ${g.name}`}
+                          title="Contribute to savings goal"
+                          onClick={() => startContributing(g.goalId)}>
+                    Contribute
+                  </button>
+                )}
               </div>
             )
           })}
