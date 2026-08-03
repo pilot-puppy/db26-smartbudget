@@ -1,3 +1,4 @@
+import { useState, useMemo } from 'react'
 import { Link } from 'react-router-dom'
 import { useTransactionData } from '../hooks/useBudgetAPI'
 import { Spinner, ErrorMessage } from '../components/Feedback'
@@ -18,6 +19,22 @@ export default function TransactionList() {
   // F086: pull data via the F091 hook. Default to {} so the page renders
   // (empty table) instead of crashing while that hook is still a stub.
   const { transactions = [], loading, error, refetch } = useTransactionData() ?? {}
+
+  // TICKET-F095 — filter by transaction type (client-side, no re-fetch)
+  const [typeFilter, setTypeFilter] = useState('ALL')
+  // TICKET-F096 — filter by date range (ISO strings compare with >= / <=)
+  const [filterFrom, setFilterFrom] = useState('')
+  const [filterTo, setFilterTo] = useState('')
+  // TICKET-F097 — case-insensitive search on description
+  const [searchTerm, setSearchTerm] = useState('')
+
+  const filteredTransactions = useMemo(() => transactions
+    .filter(t => typeFilter === 'ALL' || t.type === typeFilter)
+    .filter(t => !filterFrom || t.txnDate >= filterFrom)
+    .filter(t => !filterTo || t.txnDate <= filterTo)
+    .filter(t => !searchTerm ||
+      t.description?.toLowerCase().includes(searchTerm.toLowerCase())),
+  [transactions, typeFilter, filterFrom, filterTo, searchTerm])
 
   // F087: confirm, DELETE, then refetch so the row disappears without a reload.
   async function handleDelete(id) {
@@ -80,6 +97,49 @@ export default function TransactionList() {
         <Link to="/add" className="btn btn-primary">+ Add Transaction</Link>
       </div>
 
+      {/* TICKET-F095 / F096 / F097 — filter bar (F098 category filter still TODO below) */}
+      <div className="card" style={{
+        display: 'flex', flexWrap: 'wrap', gap: '1rem', alignItems: 'flex-end',
+        marginBottom: '1rem', padding: '1rem',
+      }}>
+        <div className="form-group" style={{ marginBottom: 0, minWidth: '140px' }}>
+          <label htmlFor="type-filter">Type</label>
+          <select id="type-filter" value={typeFilter}
+                  onChange={e => setTypeFilter(e.target.value)}>
+            <option value="ALL">All</option>
+            <option value="INCOME">Income</option>
+            <option value="EXPENSE">Expense</option>
+          </select>
+        </div>
+
+        <div className="form-group" style={{ marginBottom: 0 }}>
+          <label htmlFor="filter-from">From</label>
+          <input id="filter-from" type="date" value={filterFrom}
+                 onChange={e => setFilterFrom(e.target.value)} />
+        </div>
+
+        <div className="form-group" style={{ marginBottom: 0 }}>
+          <label htmlFor="filter-to">To</label>
+          <input id="filter-to" type="date" value={filterTo}
+                 onChange={e => setFilterTo(e.target.value)} />
+        </div>
+
+        <div className="form-group" style={{ marginBottom: 0, flex: '1 1 200px' }}>
+          <label htmlFor="search-term">Search</label>
+          <input id="search-term" type="search" placeholder="Search transactions..."
+                 value={searchTerm} onChange={e => setSearchTerm(e.target.value)} />
+        </div>
+
+        <button type="button" className="btn btn-secondary"
+                onClick={() => { setTypeFilter('ALL'); setFilterFrom(''); setFilterTo(''); setSearchTerm('') }}>
+          Clear filters
+        </button>
+
+        <span style={{ alignSelf: 'center', color: 'var(--text-muted)', fontSize: '0.9rem' }}>
+          Showing {filteredTransactions.length} of {transactions.length}
+        </span>
+      </div>
+
       <div className="card">
         <table>
           <thead>
@@ -96,7 +156,9 @@ export default function TransactionList() {
           <tbody>
             {transactions.length === 0 ? (
               <tr><td colSpan={7} style={{ textAlign: 'center', color: 'var(--text-muted)' }}>No transactions yet.</td></tr>
-            ) : transactions.map(t => (
+            ) : filteredTransactions.length === 0 ? (
+              <tr><td colSpan={7} style={{ textAlign: 'center', color: 'var(--text-muted)' }}>No transactions match this filter.</td></tr>
+            ) : filteredTransactions.map(t => (
               <tr key={t.txnId}>
                 <td>{t.txnId}</td>
                 <td>{t.txnDate}</td>
