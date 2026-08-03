@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { useCategories } from '../hooks/useBudgetAPI'
+import { Toast } from '../components/Feedback'
 
 // ============================================================
 // TICKET-F088/F089 (Day 8, Sprint 7) — Add Transaction Form
@@ -27,7 +28,9 @@ export default function AddTransactionForm() {
     txnDate: new Date().toISOString().substring(0, 10),
     description: '',
   })
-  const [error, setError] = useState(null)
+  // F104: surface validation + API errors as a red toast
+  const [toast, setToast] = useState(null)
+  const fail = (message) => setToast({ type: 'error', message })
 
   function handleChange(e) {
     const { name, value } = e.target
@@ -43,9 +46,9 @@ export default function AddTransactionForm() {
     const category = categories.find(c => String(c.categoryId) === String(form.categoryId))
     const today = new Date().toISOString().substring(0, 10)
 
-    if (!form.categoryId) return setError('Please choose a category.')
-    if (!(parseFloat(form.amount) > 0)) return setError('Amount must be greater than zero.')
-    if (form.txnDate > today) return setError('Date cannot be in the future.')
+    if (!form.categoryId) return fail('Please choose a category.')
+    if (!(parseFloat(form.amount) > 0)) return fail('Amount must be greater than zero.')
+    if (form.txnDate > today) return fail('Date cannot be in the future.')
 
     const body = {
       user: { userId: 1 },
@@ -62,15 +65,16 @@ export default function AddTransactionForm() {
       body: JSON.stringify(body),
     })
     if (res.ok) navigate('/transactions')
-    else setError('Could not save transaction. Please try again.')
+    else fail('Could not save transaction. Please try again.')
   }
 
   return (
     <div>
       <h1 style={{ marginBottom: '1.5rem', color: 'var(--primary)' }}>Add Transaction</h1>
 
+      {toast && <Toast type={toast.type} message={toast.message} onClose={() => setToast(null)} />}
+
       <form className="card" style={{ maxWidth: 540 }} onSubmit={handleSubmit} noValidate>
-        {error && <p style={{ color: 'var(--danger)', marginBottom: '1rem' }}>{error}</p>}
 
         <div className="form-group">
           <label htmlFor="categoryId">Category</label>

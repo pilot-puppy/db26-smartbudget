@@ -2,6 +2,8 @@ import { useState, useEffect, useMemo } from 'react'
 import { Link } from 'react-router-dom'
 import { useTransactionData } from '../hooks/useBudgetAPI'
 import { Spinner, ErrorMessage } from '../components/Feedback'
+import EmptyState from '../components/EmptyState'
+import { formatCurrency } from '../utils/format'
 import MonthlySummaryChart from '../components/MonthlySummaryChart'
 
 // ============================================================
@@ -41,8 +43,6 @@ export default function Dashboard() {
       count: transactions.length,
     }
   }, [transactions])
-
-  const fmt = (n) => '£' + n.toFixed(2)
 
   useEffect(() => {
     fetch('/api/categories')
@@ -105,20 +105,27 @@ export default function Dashboard() {
 
       {txLoading && <Spinner />}
       {txError && <ErrorMessage message={txError} />}
-      {!txLoading && !txError && (
+      {!txLoading && !txError && count === 0 && (
+        <EmptyState
+          title="Welcome to SmartBudget"
+          body="Add your first transaction to see income, expenses, and trends."
+          ctaLabel="+ Add Transaction"
+          ctaTo="/add" />
+      )}
+      {!txLoading && !txError && count > 0 && (
         <div className="stat-grid" style={{ marginBottom: '1.5rem' }}>
           <div className="card stat-card">
             <p className="stat-card__label">Total Income</p>
-            <p className="stat-card__value" style={{ color: 'var(--success)' }}>{fmt(income)}</p>
+            <p className="stat-card__value" style={{ color: 'var(--success)' }}>{formatCurrency(income)}</p>
           </div>
           <div className="card stat-card">
             <p className="stat-card__label">Total Expenses</p>
-            <p className="stat-card__value" style={{ color: 'var(--danger)' }}>{fmt(expenses)}</p>
+            <p className="stat-card__value" style={{ color: 'var(--danger)' }}>{formatCurrency(expenses)}</p>
           </div>
           <div className="card stat-card">
             <p className="stat-card__label">Net Balance</p>
             <p className="stat-card__value" style={{ color: net < 0 ? 'var(--danger)' : 'var(--primary)' }}>
-              {fmt(net)}
+              {formatCurrency(net)}
             </p>
           </div>
           <div className="card stat-card">
@@ -145,7 +152,7 @@ export default function Dashboard() {
         OBSERVE: A bar chart should appear with green (income) and red (expense) bars.
       */}
 
-      {!txLoading && !txError && (
+      {!txLoading && !txError && count > 0 && (
         <div className="card" style={{ marginBottom: '1.5rem' }}>
           <h3 style={{ marginBottom: '1rem', color: 'var(--primary)' }}>Monthly Income vs Expenses</h3>
           <MonthlySummaryChart transactions={transactions} />

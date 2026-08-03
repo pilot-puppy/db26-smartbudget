@@ -1,6 +1,8 @@
 import { useState } from 'react'
 import { useSavingsGoals } from '../hooks/useBudgetAPI'
 import { Spinner, ErrorMessage } from '../components/Feedback'
+import EmptyState from '../components/EmptyState'
+import { formatCurrency } from '../utils/format'
 
 // ============================================================
 // TICKET-F090/F103 (Day 8-9, Sprint 7-8) — Savings Goals Page
@@ -52,16 +54,12 @@ export default function SavingsGoals() {
   if (loading) return <Spinner />
   if (error) return <ErrorMessage message={error} />
 
-  const fmt = (n) => '£' + Number(n).toFixed(2)
-
   return (
     <div>
       <h1 style={{ marginBottom: '1.5rem', color: 'var(--primary)' }}>Savings Goals</h1>
 
       {goals.length === 0 ? (
-        <div className="card" style={{ textAlign: 'center', padding: '3rem' }}>
-          <p style={{ color: 'var(--text-muted)' }}>No savings goals yet.</p>
-        </div>
+        <EmptyState title="No savings goals" body="Set a goal and start saving towards it." />
       ) : (
         <div style={{
           display: 'grid',
@@ -82,7 +80,7 @@ export default function SavingsGoals() {
                   </p>
                 )}
                 <p style={{ marginBottom: '0.25rem' }}>
-                  {fmt(current)} of {fmt(target)}
+                  {formatCurrency(current)} of {formatCurrency(target)}
                 </p>
                 <div className="progress-bar-bg">
                   <div className="progress-bar-fill" style={{ width: `${pct}%` }} />

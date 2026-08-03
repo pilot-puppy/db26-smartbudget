@@ -1,7 +1,9 @@
 import { useState, useMemo } from 'react'
 import { Link } from 'react-router-dom'
 import { useTransactionData } from '../hooks/useBudgetAPI'
-import { Spinner, ErrorMessage } from '../components/Feedback'
+import { Spinner, ErrorMessage, Toast } from '../components/Feedback'
+import EmptyState from '../components/EmptyState'
+import { formatCurrency } from '../utils/format'
 
 // ============================================================
 // TICKET-F086/F087/F098/F102 (Day 8-9) — Transaction List Page
@@ -36,12 +38,19 @@ export default function TransactionList() {
       t.description?.toLowerCase().includes(searchTerm.toLowerCase())),
   [transactions, typeFilter, filterFrom, filterTo, searchTerm])
 
+  // F104: toast feedback (green success / red error) for the delete action
+  const [toast, setToast] = useState(null)
+
+  function clearFilters() {
+    setTypeFilter('ALL'); setFilterFrom(''); setFilterTo(''); setSearchTerm('')
+  }
+
   // F087: confirm, DELETE, then refetch so the row disappears without a reload.
   async function handleDelete(id) {
     if (!window.confirm('Delete this transaction?')) return
     const res = await fetch(`/api/transactions/${id}`, { method: 'DELETE' })
-    if (res.ok) refetch?.()
-    else alert('Could not delete transaction.')
+    if (res.ok) { refetch?.(); setToast({ type: 'success', message: 'Transaction deleted' }) }
+    else setToast({ type: 'error', message: 'Could not delete transaction' })
   }
 
   if (loading) return <Spinner />
@@ -90,92 +99,115 @@ export default function TransactionList() {
   // OBSERVE: Click Edit → fields should become editable → change the amount →
   //          click Save → the row should update with the new value.
 
+  const noData = transactions.length === 0
+  const noMatches = !noData && filteredTransactions.length === 0
+
   return (
     <div>
+      {toast && <Toast type={toast.type} message={toast.message} onClose={() => setToast(null)} />}
+
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem' }}>
         <h1 style={{ color: 'var(--primary)' }}>Transactions</h1>
         <Link to="/add" className="btn btn-primary">+ Add Transaction</Link>
       </div>
 
-      {/* TICKET-F095 / F096 / F097 — filter bar (F098 category filter still TODO below) */}
-      <div className="card" style={{
-        display: 'flex', flexWrap: 'wrap', gap: '1rem', alignItems: 'flex-end',
-        marginBottom: '1rem', padding: '1rem',
-      }}>
-        <div className="form-group" style={{ marginBottom: 0, minWidth: '140px' }}>
-          <label htmlFor="type-filter">Type</label>
-          <select id="type-filter" value={typeFilter}
-                  onChange={e => setTypeFilter(e.target.value)}>
-            <option value="ALL">All</option>
-            <option value="INCOME">Income</option>
-            <option value="EXPENSE">Expense</option>
-          </select>
-        </div>
+      {/* F105: no data at all → onboarding empty state instead of an empty table */}
+      {noData ? (
+        <EmptyState
+          title="No transactions yet"
+          body="Start tracking your money — add your first transaction."
+          ctaLabel="+ Add Transaction"
+          ctaTo="/add" />
+      ) : (
+        <>
+          {/* TICKET-F095 / F096 / F097 — filter bar (F098 category filter still TODO below) */}
+          <div className="card" style={{
+            display: 'flex', flexWrap: 'wrap', gap: '1rem', alignItems: 'flex-end',
+            marginBottom: '1rem', padding: '1rem',
+          }}>
+            <div className="form-group" style={{ marginBottom: 0, minWidth: '140px' }}>
+              <label htmlFor="type-filter">Type</label>
+              <select id="type-filter" value={typeFilter}
+                      onChange={e => setTypeFilter(e.target.value)}>
+                <option value="ALL">All</option>
+                <option value="INCOME">Income</option>
+                <option value="EXPENSE">Expense</option>
+              </select>
+            </div>
 
-        <div className="form-group" style={{ marginBottom: 0 }}>
-          <label htmlFor="filter-from">From</label>
-          <input id="filter-from" type="date" value={filterFrom}
-                 onChange={e => setFilterFrom(e.target.value)} />
-        </div>
+            <div className="form-group" style={{ marginBottom: 0 }}>
+              <label htmlFor="filter-from">From</label>
+              <input id="filter-from" type="date" value={filterFrom}
+                     onChange={e => setFilterFrom(e.target.value)} />
+            </div>
 
-        <div className="form-group" style={{ marginBottom: 0 }}>
-          <label htmlFor="filter-to">To</label>
-          <input id="filter-to" type="date" value={filterTo}
-                 onChange={e => setFilterTo(e.target.value)} />
-        </div>
+            <div className="form-group" style={{ marginBottom: 0 }}>
+              <label htmlFor="filter-to">To</label>
+              <input id="filter-to" type="date" value={filterTo}
+                     onChange={e => setFilterTo(e.target.value)} />
+            </div>
 
-        <div className="form-group" style={{ marginBottom: 0, flex: '1 1 200px' }}>
-          <label htmlFor="search-term">Search</label>
-          <input id="search-term" type="search" placeholder="Search transactions..."
-                 value={searchTerm} onChange={e => setSearchTerm(e.target.value)} />
-        </div>
+            <div className="form-group" style={{ marginBottom: 0, flex: '1 1 200px' }}>
+              <label htmlFor="search-term">Search</label>
+              <input id="search-term" type="search" placeholder="Search transactions..."
+                     value={searchTerm} onChange={e => setSearchTerm(e.target.value)} />
+            </div>
 
-        <button type="button" className="btn btn-secondary"
-                onClick={() => { setTypeFilter('ALL'); setFilterFrom(''); setFilterTo(''); setSearchTerm('') }}>
-          Clear filters
-        </button>
+            <button type="button" className="btn btn-secondary" onClick={clearFilters}>
+              Clear filters
+            </button>
 
-        <span style={{ alignSelf: 'center', color: 'var(--text-muted)', fontSize: '0.9rem' }}>
-          Showing {filteredTransactions.length} of {transactions.length}
-        </span>
-      </div>
+            <span style={{ alignSelf: 'center', color: 'var(--text-muted)', fontSize: '0.9rem' }}>
+              Showing {filteredTransactions.length} of {transactions.length}
+            </span>
+          </div>
 
-      <div className="card">
-        <table>
-          <thead>
-            <tr>
-              <th>ID</th>
-              <th>Date</th>
-              <th>Category</th>
-              <th>Description</th>
-              <th>Amount</th>
-              <th>Type</th>
-              <th>Actions</th>
-            </tr>
-          </thead>
-          <tbody>
-            {transactions.length === 0 ? (
-              <tr><td colSpan={7} style={{ textAlign: 'center', color: 'var(--text-muted)' }}>No transactions yet.</td></tr>
-            ) : filteredTransactions.length === 0 ? (
-              <tr><td colSpan={7} style={{ textAlign: 'center', color: 'var(--text-muted)' }}>No transactions match this filter.</td></tr>
-            ) : filteredTransactions.map(t => (
-              <tr key={t.txnId}>
-                <td>{t.txnId}</td>
-                <td>{t.txnDate}</td>
-                <td>{t.category?.name}</td>
-                <td>{t.description}</td>
-                <td style={{ color: t.type === 'INCOME' ? 'var(--success)' : 'var(--danger)' }}>
-                  £{Number(t.amount).toFixed(2)}
-                </td>
-                <td><span className={`badge badge--${t.type.toLowerCase()}`}>{t.type}</span></td>
-                <td>
-                  <button className="btn btn-danger" onClick={() => handleDelete(t.txnId)}>Delete</button>
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
+          {/* F105: filters matched nothing → styled empty state with a clear-filters action */}
+          {noMatches ? (
+            <EmptyState
+              title="No matches"
+              body="No transactions match your current filters."
+              ctaLabel="Clear filters"
+              onAction={clearFilters} />
+          ) : (
+            <div className="card">
+              <table>
+                <thead>
+                  <tr>
+                    <th>ID</th>
+                    <th>Date</th>
+                    <th>Category</th>
+                    <th>Description</th>
+                    <th>Amount</th>
+                    <th>Type</th>
+                    <th>Actions</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {filteredTransactions.map(t => (
+                    <tr key={t.txnId}>
+                      <td>{t.txnId}</td>
+                      <td>{t.txnDate}</td>
+                      <td>{t.category?.name}</td>
+                      <td>{t.description}</td>
+                      <td style={{ color: t.type === 'INCOME' ? 'var(--success)' : 'var(--danger)' }}>
+                        {formatCurrency(t.amount)}
+                      </td>
+                      <td><span className={`badge badge--${t.type.toLowerCase()}`}>{t.type}</span></td>
+                      <td>
+                        <button className="btn btn-danger"
+                                aria-label={`Delete transaction ${t.txnId}`}
+                                title="Delete transaction"
+                                onClick={() => handleDelete(t.txnId)}>Delete</button>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </>
+      )}
     </div>
   )
 }
