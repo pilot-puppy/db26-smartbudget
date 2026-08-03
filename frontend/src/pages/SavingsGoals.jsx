@@ -20,9 +20,6 @@ import { formatCurrency } from '../utils/format'
 
 export default function SavingsGoals() {
   // F090: fetch goals for the demo user (hardcoded userId=1, no auth yet)
-<<<<<<< Updated upstream
-  const { goals = [], loading, error, refetch } = useSavingsGoals(1)
-=======
   const { goals, loading, error, refetch } = useSavingsGoals(1)
   const [contributingId, setContributingId] = useState(null)
   const [contributionAmount, setContributionAmount] = useState('')
@@ -74,7 +71,6 @@ export default function SavingsGoals() {
       setContributing(false)
     }
   }
->>>>>>> Stashed changes
 
   // -------------------------------------------------------
   // TODO TICKET-F103 (Day 9): Step 2 — Wire up Contribute button
@@ -119,14 +115,9 @@ export default function SavingsGoals() {
       ) : (
         <div style={{
           display: 'grid',
-          gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))',
+          gridTemplateColumns: 'repeat(auto-fill, minmax(260px, 1fr))',
           gap: '1.2rem',
         }}>
-<<<<<<< Updated upstream
-          {goals.map(g => (
-            <GoalCard key={g.goalId} goal={g} onContribute={handleContribute} />
-          ))}
-=======
           {goals.map(g => {
             const target = Number(g.targetAmount)
             const current = Number(g.currentAmount)
@@ -191,100 +182,7 @@ export default function SavingsGoals() {
               </div>
             )
           })}
->>>>>>> Stashed changes
         </div>
-      )}
-    </div>
-  )
-}
-
-function GoalCard({ goal, onContribute }) {
-  const target = Number(goal.targetAmount)
-  const current = Number(goal.currentAmount)
-  const pct = Math.min(100, Math.max(0, target ? (current / target) * 100 : 0))
-  const colour = pct < 33 ? '#c62828' : pct < 66 ? '#f9a825' : '#2e7d32'
-
-  const [isContributing, setIsContributing] = useState(false)
-  const [amount, setAmount] = useState('')
-  const [busy, setBusy] = useState(false)
-  const [err, setErr] = useState(null)
-
-  async function submit(e) {
-    e.preventDefault()
-    const value = parseFloat(amount)
-    if (!Number.isFinite(value) || value <= 0) {
-      setErr('Enter a positive amount')
-      return
-    }
-    setBusy(true)
-    setErr(null)
-    try {
-      await onContribute(goal.goalId, value)
-      setAmount('')
-      setIsContributing(false)
-    } catch (e) {
-      setErr(e.message)
-    } finally {
-      setBusy(false)
-    }
-  }
-
-  return (
-    <div className="card">
-      <h3 style={{ marginBottom: '0.25rem' }}>{goal.name}</h3>
-      {goal.deadline && (
-        <p style={{ fontSize: '0.85rem', color: 'var(--text-muted)', marginBottom: '0.5rem' }}>
-          Target date: {goal.deadline}
-        </p>
-      )}
-      <p style={{ marginBottom: '0.25rem' }}>
-        {formatCurrency(current)} of {formatCurrency(target)}
-      </p>
-      <div className="progress-bar-bg">
-        <div className="progress-bar-fill" style={{ width: `${pct}%`, background: colour }} />
-      </div>
-      <p style={{ fontSize: '0.85rem', color: 'var(--text-muted)', marginTop: '0.25rem' }}>
-        {pct.toFixed(0)}%{pct >= 100 ? ' (complete)' : ''}
-      </p>
-
-      {!isContributing ? (
-        <button
-          className="btn btn-primary"
-          style={{ marginTop: '1rem', width: '100%' }}
-          onClick={() => { setIsContributing(true); setErr(null); }}>
-          Contribute
-        </button>
-      ) : (
-        <form onSubmit={submit} style={{ marginTop: '1rem' }}>
-          <div style={{ display: 'flex', gap: '0.5rem' }}>
-            <input
-              type="number"
-              step="0.01"
-              min="0.01"
-              placeholder="Amount..."
-              value={amount}
-              onChange={e => setAmount(e.target.value)}
-              disabled={busy}
-              style={{ flex: 1, padding: '0.4rem 0.6rem', border: '1px solid var(--border)', borderRadius: '4px' }}
-            />
-            <button
-              type="submit"
-              disabled={busy || !amount}
-              className="btn btn-primary"
-              style={{ padding: '0.4rem 0.8rem' }}>
-              {busy ? '...' : 'Submit'}
-            </button>
-            <button
-              type="button"
-              disabled={busy}
-              className="btn btn-secondary"
-              style={{ padding: '0.4rem 0.8rem' }}
-              onClick={() => { setIsContributing(false); setErr(null); setAmount(''); }}>
-              Cancel
-            </button>
-          </div>
-          {err && <p style={{ color: 'var(--danger)', marginTop: '0.5rem', fontSize: '0.85rem' }}>{err}</p>}
-        </form>
       )}
     </div>
   )

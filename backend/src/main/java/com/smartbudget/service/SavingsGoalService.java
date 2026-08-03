@@ -55,20 +55,11 @@ public class SavingsGoalService {
             throw new InvalidTransactionException("Contribution must be > 0");
         }
         SavingsGoal goal = getById(goalId);
-<<<<<<< Updated upstream
-        BigDecimal newAmount = goal.getCurrentAmount().add(amount);
-        if (goal.getTargetAmount() != null && newAmount.compareTo(goal.getTargetAmount()) > 0) {
-            BigDecimal excess = newAmount.subtract(goal.getTargetAmount());
-            throw new InvalidTransactionException("Contribution exceeds target by " + excess);
-        }
-        goal.setCurrentAmount(newAmount);
-=======
         BigDecimal updatedAmount = goal.getCurrentAmount().add(amount);
         if (updatedAmount.compareTo(goal.getTargetAmount()) > 0) {
             throw new InvalidTransactionException("Contribution exceeds target");
         }
         goal.setCurrentAmount(updatedAmount);
->>>>>>> Stashed changes
         return goalRepo.save(goal);
     }
 

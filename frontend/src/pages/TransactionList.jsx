@@ -26,7 +26,7 @@ export default function TransactionList() {
   const [typeFilter, setTypeFilter] = useState('ALL')
   // TICKET-F096 — filter by date range (ISO strings compare with >= / <=)
   const [filterFrom, setFilterFrom] = useState('')
-  const [filterTo, setFilterTo]     = useState('')
+  const [filterTo, setFilterTo] = useState('')
   // TICKET-F097 — case-insensitive search on description
   const [searchTerm, setSearchTerm] = useState('')
   const [editingId, setEditingId] = useState(null)
@@ -44,50 +44,8 @@ export default function TransactionList() {
   // F104: toast feedback (green success / red error) for the delete action
   const [toast, setToast] = useState(null)
 
-  // TICKET-F102 — inline edit transaction state
-  const [editingId, setEditingId] = useState(null)
-  const [editForm, setEditForm]   = useState({ amount: '', description: '', type: 'EXPENSE', txnDate: '' })
-
   function clearFilters() {
     setTypeFilter('ALL'); setFilterFrom(''); setFilterTo(''); setSearchTerm('')
-  }
-
-  function handleStartEdit(t) {
-    setEditingId(t.txnId)
-    setEditForm({
-      amount: String(t.amount),
-      description: t.description ?? '',
-      type: t.type,
-      txnDate: t.txnDate,
-    })
-  }
-
-  function handleCancelEdit() {
-    setEditingId(null)
-  }
-
-  async function handleSaveEdit(t) {
-    try {
-      const res = await fetch(`/api/transactions/${t.txnId}`, {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          amount: parseFloat(editForm.amount),
-          txnDate: editForm.txnDate || t.txnDate,
-          description: editForm.description,
-          type: editForm.type,
-        }),
-      })
-      if (!res.ok) {
-        const body = await res.json().catch(() => null)
-        throw new Error(body?.message || `HTTP ${res.status}`)
-      }
-      setEditingId(null)
-      refetch?.()
-      setToast({ type: 'success', message: 'Transaction updated successfully' })
-    } catch (err) {
-      setToast({ type: 'error', message: err.message || 'Could not update transaction' })
-    }
   }
 
   // F087: confirm, DELETE, then refetch so the row disappears without a reload.
@@ -143,6 +101,49 @@ export default function TransactionList() {
 
   if (loading) return <Spinner />
   if (error) return <ErrorMessage message={error} />
+
+  // -------------------------------------------------------
+  // TODO TICKET-F098 (Day 9): Step 3 — Add filter bar
+  // -------------------------------------------------------
+  // WHAT: A filter section above the table with:
+  //       - Category dropdown (filter by category)
+  //       - Date range inputs (from date, to date)
+  //       - Search input (filter by description keyword)
+  //
+  // HOW:  1. Add state variables for each filter: filterCategory, filterFrom, filterTo, searchTerm
+  //       2. Use useMemo to create a "filteredTransactions" array that applies all filters
+  //       3. Filter logic (inside useMemo):
+  //          - If filterCategory is set, keep only transactions where category.name matches
+  //          - If filterFrom is set, keep only transactions where txnDate >= filterFrom
+  //          - If searchTerm is set, keep only transactions where description includes the term
+  //       4. Render the table using filteredTransactions instead of transactions
+  //       5. Render filter inputs above the table, each with onChange updating state
+  //
+  // WHY:  Filtering happens client-side (in the browser) because we already have all data.
+  //       useMemo caches the filtered result so it only recalculates when filters or data change.
+  //       This is faster than calling the API with filter parameters for every keystroke.
+  //
+  // OBSERVE: Type in the search box — the table should update instantly (no API calls).
+  //          Select a category — only matching transactions should appear.
+
+  // -------------------------------------------------------
+  // TODO TICKET-F102 (Day 9): Step 4 — Add edit functionality
+  // -------------------------------------------------------
+  // WHAT: Each table row gets an "Edit" button that allows inline editing.
+  //
+  // HOW:  1. Add state for the currently editing transaction: editingId, editForm
+  //       2. When Edit is clicked, set editingId to that row's ID
+  //          and populate editForm with the current values
+  //       3. In the table, if row ID === editingId, show input fields instead of text
+  //       4. Add Save/Cancel buttons in the editing row
+  //       5. On Save, call PUT /api/transactions/{id} with the updated data
+  //       6. On success, call refetch() and clear editingId
+  //
+  // WHY:  Inline editing is a better UX than navigating to a separate edit page.
+  //       The user sees the change immediately in context.
+  //
+  // OBSERVE: Click Edit → fields should become editable → change the amount →
+  //          click Save → the row should update with the new value.
 
   const noData = transactions.length === 0
   const noMatches = !noData && filteredTransactions.length === 0
@@ -229,69 +230,6 @@ export default function TransactionList() {
                   </tr>
                 </thead>
                 <tbody>
-<<<<<<< Updated upstream
-                  {filteredTransactions.map(t => (
-                    editingId === t.txnId ? (
-                      <tr key={t.txnId}>
-                        <td>{t.txnId}</td>
-                        <td>
-                          <input type="date" value={editForm.txnDate}
-                                 onChange={e => setEditForm(v => ({ ...v, txnDate: e.target.value }))}
-                                 style={{ padding: '0.3rem 0.5rem', border: '1px solid var(--border)', borderRadius: '4px' }} />
-                        </td>
-                        <td>{t.category?.name}</td>
-                        <td>
-                          <input type="text" value={editForm.description}
-                                 onChange={e => setEditForm(v => ({ ...v, description: e.target.value }))}
-                                 style={{ padding: '0.3rem 0.5rem', border: '1px solid var(--border)', borderRadius: '4px', width: '100%' }} />
-                        </td>
-                        <td>
-                          <input type="number" step="0.01" value={editForm.amount}
-                                 onChange={e => setEditForm(v => ({ ...v, amount: e.target.value }))}
-                                 style={{ padding: '0.3rem 0.5rem', border: '1px solid var(--border)', borderRadius: '4px', width: '90px' }} />
-                        </td>
-                        <td>
-                          <select value={editForm.type}
-                                  onChange={e => setEditForm(v => ({ ...v, type: e.target.value }))}
-                                  style={{ padding: '0.3rem 0.5rem', border: '1px solid var(--border)', borderRadius: '4px' }}>
-                            <option value="INCOME">INCOME</option>
-                            <option value="EXPENSE">EXPENSE</option>
-                          </select>
-                        </td>
-                        <td style={{ whiteSpace: 'nowrap' }}>
-                          <button className="btn btn-primary btn-sm"
-                                  style={{ marginRight: '0.4rem', padding: '0.3rem 0.7rem' }}
-                                  onClick={() => handleSaveEdit(t)}>Save</button>
-                          <button className="btn btn-secondary btn-sm"
-                                  style={{ padding: '0.3rem 0.7rem' }}
-                                  onClick={handleCancelEdit}>Cancel</button>
-                        </td>
-                      </tr>
-                    ) : (
-                      <tr key={t.txnId}>
-                        <td>{t.txnId}</td>
-                        <td>{t.txnDate}</td>
-                        <td>{t.category?.name}</td>
-                        <td>{t.description}</td>
-                        <td style={{ color: t.type === 'INCOME' ? 'var(--success)' : 'var(--danger)' }}>
-                          {formatCurrency(t.amount)}
-                        </td>
-                        <td><span className={`badge badge--${t.type.toLowerCase()}`}>{t.type}</span></td>
-                        <td style={{ whiteSpace: 'nowrap' }}>
-                          <button className="btn btn-secondary btn-sm"
-                                  style={{ marginRight: '0.4rem', padding: '0.3rem 0.7rem' }}
-                                  aria-label={`Edit transaction ${t.txnId}`}
-                                  title="Edit transaction"
-                                  onClick={() => handleStartEdit(t)}>Edit</button>
-                          <button className="btn btn-danger btn-sm"
-                                  style={{ padding: '0.3rem 0.7rem' }}
-                                  aria-label={`Delete transaction ${t.txnId}`}
-                                  title="Delete transaction"
-                                  onClick={() => handleDelete(t.txnId)}>Delete</button>
-                        </td>
-                      </tr>
-                    )
-=======
                   {filteredTransactions.map(t => editingId === t.txnId ? (
                     <tr key={t.txnId}>
                       <td>{t.txnId}</td>
@@ -347,7 +285,6 @@ export default function TransactionList() {
                                 onClick={() => handleDelete(t.txnId)}>Delete</button>
                       </td>
                     </tr>
->>>>>>> Stashed changes
                   ))}
                 </tbody>
               </table>

@@ -32,15 +32,9 @@ public class TransactionController {
     private final TransactionService service;
 
     public TransactionController(TransactionRepository txnRepo,
-<<<<<<< Updated upstream
-                                  UserRepository userRepo,
-                                  CategoryRepository categoryRepo,
-                                  TransactionService service) {
-=======
                                  UserRepository userRepo,
                                  CategoryRepository categoryRepo,
                                  TransactionService service) {
->>>>>>> Stashed changes
         this.txnRepo = txnRepo;
         this.userRepo = userRepo;
         this.categoryRepo = categoryRepo;
@@ -85,18 +79,10 @@ public class TransactionController {
         return ResponseEntity.noContent().build();
     }
 
-<<<<<<< Updated upstream
-    // TICKET-F102 (Day 9) — PUT /api/transactions/{id} (Edit transaction)
-    @PutMapping("/{id}")
-    public Transaction update(@PathVariable Long id, @RequestBody Transaction body) {
-        return service.update(id, body.getAmount(), body.getTxnDate(),
-                              body.getDescription(), body.getType());
-=======
     @PutMapping("/{id}")
     public Transaction update(@PathVariable Long id,
                               @RequestBody Transaction body) {
         return service.update(id, body.getAmount(), body.getTxnDate(),
                 body.getDescription(), body.getType());
->>>>>>> Stashed changes
     }
 }
