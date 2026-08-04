@@ -1,6 +1,6 @@
 import { useState, useMemo } from 'react'
 import { Link } from 'react-router-dom'
-import { useTransactionData } from '../hooks/useBudgetAPI'
+import { useTransactionData, useCategories } from '../hooks/useBudgetAPI'
 import { Spinner, ErrorMessage, Toast } from '../components/Feedback'
 import EmptyState from '../components/EmptyState'
 import { formatCurrency } from '../utils/format'
@@ -21,9 +21,12 @@ export default function TransactionList() {
   // F086: pull data via the F091 hook. Default to {} so the page renders
   // (empty table) instead of crashing while that hook is still a stub.
   const { transactions = [], loading, error, refetch } = useTransactionData() ?? {}
+  const categories = useCategories()
 
   // TICKET-F095 — filter by transaction type (client-side, no re-fetch)
   const [typeFilter, setTypeFilter] = useState('ALL')
+  // TICKET-F098 — filter by category name
+  const [filterCategory, setFilterCategory] = useState('ALL')
   // TICKET-F096 — filter by date range (ISO strings compare with >= / <=)
   const [filterFrom, setFilterFrom] = useState('')
   const [filterTo, setFilterTo] = useState('')
@@ -35,17 +38,22 @@ export default function TransactionList() {
 
   const filteredTransactions = useMemo(() => transactions
     .filter(t => typeFilter === 'ALL' || t.type === typeFilter)
+    .filter(t => filterCategory === 'ALL' || t.category?.name === filterCategory)
     .filter(t => !filterFrom || t.txnDate >= filterFrom)
     .filter(t => !filterTo || t.txnDate <= filterTo)
     .filter(t => !searchTerm ||
       t.description?.toLowerCase().includes(searchTerm.toLowerCase())),
-  [transactions, typeFilter, filterFrom, filterTo, searchTerm])
+  [transactions, typeFilter, filterCategory, filterFrom, filterTo, searchTerm])
 
   // F104: toast feedback (green success / red error) for the delete action
   const [toast, setToast] = useState(null)
 
   function clearFilters() {
-    setTypeFilter('ALL'); setFilterFrom(''); setFilterTo(''); setSearchTerm('')
+    setTypeFilter('ALL')
+    setFilterCategory('ALL')
+    setFilterFrom('')
+    setFilterTo('')
+    setSearchTerm('')
   }
 
   // F087: confirm, DELETE, then refetch so the row disappears without a reload.
@@ -166,7 +174,7 @@ export default function TransactionList() {
           ctaTo="/add" />
       ) : (
         <>
-          {/* TICKET-F095 / F096 / F097 — filter bar (F098 category filter still TODO below) */}
+          {/* TICKET-F095 / F096 / F097 / F098 — filter bar */}
           <div className="card" style={{
             display: 'flex', flexWrap: 'wrap', gap: '1rem', alignItems: 'flex-end',
             marginBottom: '1rem', padding: '1rem',
@@ -178,6 +186,17 @@ export default function TransactionList() {
                 <option value="ALL">All</option>
                 <option value="INCOME">Income</option>
                 <option value="EXPENSE">Expense</option>
+              </select>
+            </div>
+
+            <div className="form-group" style={{ marginBottom: 0, minWidth: '160px' }}>
+              <label htmlFor="category-filter">Category</label>
+              <select id="category-filter" value={filterCategory}
+                      onChange={e => setFilterCategory(e.target.value)}>
+                <option value="ALL">All categories</option>
+                {categories.map(c => (
+                  <option key={c.categoryId} value={c.name}>{c.name}</option>
+                ))}
               </select>
             </div>
 
