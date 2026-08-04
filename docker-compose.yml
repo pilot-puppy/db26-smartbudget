@@ -63,6 +63,49 @@ version: "3.9"
 
 services:
 
+  # TICKET-F107 / F110 / F111 — implementation
+  postgres:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: smartbudget
+      POSTGRES_USER: sb_user
+      POSTGRES_PASSWORD: sb_pass
+    ports:
+      - "5432:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U sb_user -d smartbudget"]
+      interval: 5s
+      retries: 5
+
+  backend:
+    build: ./backend
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+    ports:
+      - "8081:8081"
+    environment:
+      SERVER_PORT: 8081
+      SPRING_PROFILES_ACTIVE: prod
+      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/smartbudget
+      SPRING_DATASOURCE_USERNAME: sb_user
+      SPRING_DATASOURCE_PASSWORD: sb_pass
+      SPRING_JPA_HIBERNATE_DDL_AUTO: update
+      SPRING_SQL_INIT_MODE: always
+      SPRING_JPA_DEFER_DATASOURCE_INITIALIZATION: true
+
+  frontend:
+    build: ./frontend
+    restart: unless-stopped
+    depends_on:
+      - backend
+    ports:
+      - "3000:80"
+
   # ===========================================================
   # TODO TICKET-F107: SERVICE 1 — PostgreSQL Database (~8 lines)
   # ===========================================================

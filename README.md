@@ -2,7 +2,7 @@
 
 > **Deutsche Bank | TDI 2026 | Foundation Track**
 
-![CI](https://github.com/<your-org>/smartbudget/actions/workflows/ci.yml/badge.svg)
+![CI](https://github.com/pilot-puppy/db26-smartbudget/actions/workflows/ci.yml/badge.svg)
 
 ---
 
@@ -17,11 +17,11 @@ mvn spring-boot:run
 ```
 | URL | What you see |
 |-----|-------------|
-| http://localhost:8080/actuator/health | `{"status":"UP"}` |
-| http://localhost:8080/api/transactions | JSON array of seed transactions |
-| http://localhost:8080/api/users | JSON array of 5 seed users |
-| http://localhost:8080/api/goals/user/1 | JSON array of savings goals |
-| http://localhost:8080/h2-console | Visual DB browser (seed data pre-loaded) |
+| http://localhost:8081/actuator/health | `{"status":"UP"}` |
+| http://localhost:8081/api/transactions | JSON array of seed transactions |
+| http://localhost:8081/api/users | JSON array of 5 seed users |
+| http://localhost:8081/api/goals/user/1 | JSON array of savings goals |
+| http://localhost:8081/h2-console | Visual DB browser (seed data pre-loaded) |
 
 H2 console settings: JDBC URL `jdbc:h2:mem:smartbudget` · Username `sa` · Password *(blank)*
 

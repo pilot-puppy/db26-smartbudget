@@ -232,3 +232,17 @@
 #   WRONG: Copying pom.xml and src/ together → dependency cache never works
 #   WRONG: Using COPY instead of COPY --from=builder → copies from laptop, not Stage 1
 #   WRONG: Forgetting WORKDIR → files end up in / (root) which is messy
+
+# TICKET-F108 — implementation (Java 21 matches pom.xml)
+FROM maven:3.9-eclipse-temurin-21 AS builder
+WORKDIR /app
+COPY pom.xml .
+RUN mvn dependency:go-offline -B
+COPY src ./src
+RUN mvn clean package -DskipTests -B
+
+FROM eclipse-temurin:21-jre-alpine
+WORKDIR /app
+COPY --from=builder /app/target/*.jar app.jar
+EXPOSE 8081
+ENTRYPOINT ["java", "-jar", "app.jar"]
