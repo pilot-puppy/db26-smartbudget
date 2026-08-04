@@ -40,7 +40,7 @@ const loadingEl = document.getElementById("loading");
 if (rowsEl) {
   loadingEl.hidden = false;
 
-  fetch("http://localhost:8080/api/transactions")
+  fetch("http://localhost:8081/api/transactions")
     .then(res => {
       if (!res.ok) throw new Error("HTTP " + res.status);
       return res.json();
@@ -70,7 +70,7 @@ async function submitTransaction(payload) {
   const message = document.getElementById("form-message");
 
   try {
-    const res = await fetch("http://localhost:8080/api/transactions", {
+    const res = await fetch("http://localhost:8081/api/transactions", {
       method:  "POST",
       headers: { "Content-Type": "application/json" },
       body:    JSON.stringify({
@@ -123,7 +123,7 @@ async function handleRowClick(e) {
   btn.textContent = "Deleting…";
 
   try {
-    const res = await fetch(`http://localhost:8080/api/transactions/${id}`,
+    const res = await fetch(`http://localhost:8081/api/transactions/${id}`,
                             { method: "DELETE" });
     if (!res.ok) throw new Error("HTTP " + res.status);
 

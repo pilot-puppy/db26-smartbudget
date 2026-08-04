@@ -1,6 +1,5 @@
 name: SmartBudget CI
 
-# F113: run on every push to main/develop and on PRs targeting main.
 on:
   push:
     branches: [main, develop]
@@ -8,49 +7,53 @@ on:
     branches: [main]
 
 jobs:
-  # F113/F114: compile the backend and run the JUnit/Mockito/MockMvc suites.
-  # No Maven wrapper in this repo, so we use the `mvn` that setup-java provides.
   build-backend:
     name: Backend (compile + test)
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-java@v4
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up JDK 21
+        uses: actions/setup-java@v4
         with:
           distribution: temurin
-          java-version: 25
+          java-version: 21
           cache: maven
+
       - name: Maven test
         working-directory: backend
         run: mvn -B test
 
-  # F113: install and build the Vite/React frontend. No test step — the project
-  # has no Vitest suite (only dev/build/preview scripts), so there is nothing to run.
   build-frontend:
     name: Frontend (build)
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Node 22
+        uses: actions/setup-node@v4
         with:
           node-version: 22
           cache: npm
           cache-dependency-path: frontend/package-lock.json
-      - name: Install
+
+      - name: Install dependencies
         working-directory: frontend
         run: npm ci
+
       - name: Build
         working-directory: frontend
         run: npm run build
 
-  # F115 (docker-build job) is intentionally NOT added yet: the Dockerfiles
-  # (F108/F109) and docker-compose services (F110) are still skeletons, so
-  # `docker compose build` would verify nothing. Add this job once they exist:
-  #
-  #   docker-build:
-  #     name: Docker images
-  #     runs-on: ubuntu-latest
-  #     needs: [build-backend, build-frontend]
-  #     steps:
-  #       - uses: actions/checkout@v4
-  #       - run: docker compose build
+  docker-build:
+    name: Docker images
+    runs-on: ubuntu-latest
+    needs: [build-backend, build-frontend]
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Build images
+        run: docker compose build
